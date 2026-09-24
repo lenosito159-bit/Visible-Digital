@@ -1,29 +1,28 @@
-# Prompt: descripciones de imagen
+<!--
+Cómo se construye el prompt final de imagen (lo hace scripts/generate_images.py):
 
-Escribe cada bloque `image-prompt` del guion siguiendo la skill `estilo-visual`.
+    prompt final = <descripción de "## Imagen sugerida"> + " " + <Prompt base de estilo-visual>
 
-**Mensaje de la pieza:** {{hook}}
-**Plataforma:** {{plataforma}} (aspect ratio {{aspect_ratio}})
-**Papel de la imagen:** {{papel}}   <!-- portada | apoyo | escena N -->
+Este archivo es la guía para escribir la descripción (la primera parte).
+-->
+# Cómo escribir la "Imagen sugerida"
 
-## Plantilla (en inglés)
+Escribe en inglés (los modelos de imagen siguen mejor las instrucciones en inglés),
+en 2-4 frases:
 
-```
-<Sujeto concreto>, <acción o estado>. <Escena: lugar y objetos clave>.
-<Composición: encuadre, dónde está el sujeto, espacio negativo para texto si es portada>.
-<Emoción o sensación que debe transmitir>.
-```
+1. **Sujeto** concreto y qué hace.
+2. **Escena**: lugar y objetos clave.
+3. **Composición**: encuadre y dónde queda espacio libre para el título.
+4. **Emoción** que debe transmitir, ligada al hook.
 
-## Reglas
+Reglas:
 
-- Concreto antes que abstracto: "a cluttered desk with three open laptops" mejor que "chaos".
-- La portada deja espacio negativo (arriba o a un lado) para el título que se añadirá en edición.
-- Las imágenes de un mismo guion comparten sujeto o escenario para que la serie sea coherente.
-- NO incluyas el prompt base de estilo: se añade automáticamente al generar.
-- Nada de texto dentro de la imagen, logos ni personas reales reconocibles.
+- Concreto antes que abstracto: "a cluttered desk with three open laptops", no "chaos".
+- Sin texto dentro de la imagen, sin logos, sin personas reales reconocibles.
+- No incluyas colores ni estilo: eso lo pone el prompt base de la skill `estilo-visual`.
 
-## Ejemplo
+Ejemplo:
 
-```image-prompt
-A freelance designer sitting cross-legged on a sofa, looking relieved at a laptop showing a simple calendar. Warm living room with plants and a mug of coffee on a low table. Medium shot, subject on the right third, empty wall on the left for a headline. Feeling of calm control after chaos.
-```
+> A freelance designer on a sofa, looking relieved at a laptop showing a simple weekly
+> calendar. Warm living room with plants and a coffee mug. Medium shot, subject on the
+> right third, empty wall on the left for a headline. Feeling of calm control after chaos.

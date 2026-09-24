@@ -1,51 +1,52 @@
-# Voz de marca en formato estructurado. La skill .claude/skills/voz-marca/SKILL.md
-# explica el porqué; aquí van los datos concretos. Edita los valores entre corchetes.
+# Voz de marca en formato programático.
+#
+# Decisión de diseño: este YAML guarda los DATOS (tono, listas, longitudes) que leen
+# los scripts sin Claude; la skill .claude/skills/voz-marca/SKILL.md guarda el CRITERIO
+# (ejemplos, matices) que usa Claude. Si chocan, manda este archivo.
+#
+# Edita todo lo que esté entre corchetes [ASÍ].
 
 marca:
   nombre: "[NOMBRE_MARCA]"
-  propuesta_de_valor: "[PROPUESTA_DE_VALOR]"
-  audiencia: "[AUDIENCIA_OBJETIVO]"
-  objetivo_principal: "[OBJETIVO_PRINCIPAL]"
+  propuesta_de_valor: "[PROPUESTA_DE_VALOR]"      # qué haces y para qué sirve, en una frase
+  audiencia: "[AUDIENCIA_OBJETIVO]"               # ej.: freelancers creativos de 25-40 años
+  objetivo: "[OBJETIVO_PRINCIPAL]"                # ej.: conseguir suscriptores a la newsletter
   idioma: es-ES
 
 tono:
   principal: "[TONO]"            # cercano | profesional | técnico | irreverente | inspirador
-  persona: "[TUTEO_O_USTED]"     # tú | usted | vosotros
-  nivel_tecnico: "[NIVEL_TECNICO]"
-  humor: "[HUMOR]"
+  persona: "[TUTEO_O_USTED]"     # tú | usted
+  nivel_tecnico: "[NIVEL_TECNICO]"  # divulgativo | intermedio | experto
+  rasgos:                        # "somos X, pero no Y"
+    - "[RASGO_1], pero no [EXCESO_1]"
+    - "[RASGO_2], pero no [EXCESO_2]"
   max_emojis: 2
 
 estructura:
-  hook:
-    max_palabras: 15
-    tipos_preferidos:
-      - dato sorprendente
-      - error común
-      - pregunta incómoda
-      - antes / después
-  cta:
-    # Rota entre estas; usa una sola por pieza.
-    opciones:
-      - "[CTA_1]"                # ej.: "Guárdalo para tu próximo proyecto"
-      - "[CTA_2]"                # ej.: "Suscríbete a la newsletter (enlace en la bio)"
-      - "[CTA_3]"
+  # Todo contenido sigue hook -> desarrollo -> CTA (ver skill voz-marca).
+  hook_max_palabras: 15
+  cta:                           # una sola CTA por pieza; se rota entre estas
+    - "[CTA_1]"
+    - "[CTA_2]"
 
-evitar:
-  - "En el mundo actual"
-  - "Hoy en día"
-  - "En la era digital"
+palabras_prohibidas:
+  - "en el mundo actual"
+  - "hoy en día"
+  - "en la era digital"
   - "sinergia"
   - "disruptivo"
   - "revolucionario"
   - "game changer"
   - "[PALABRA_PROHIBIDA_1]"
 
+# Longitud del TEXTO que escribimos, en palabras. Los límites técnicos de cada
+# plataforma (duración, caracteres) están en plataformas.yaml.
+longitud_por_plataforma:
+  youtube: "900-1500 palabras de guion (≈ 6-10 min)"
+  instagram: "caption de 80-150 palabras + 5-8 slides de 15-30 palabras"
+  linkedin: "150-300 palabras"
+  tiktok: "80-150 palabras de guion (≈ 30-60 s)"
+
 hashtags:
   marca: ["[#HASHTAG_MARCA]"]
-  maximo_por_post: 5
-
-pipeline:
-  ideas_por_defecto: 5           # N ideas por ejecución si no se indica otra cosa
-  guiones_por_defecto: 1         # cuántas de esas ideas se convierten en guion
-  imagenes_por_guion: 3          # máximo de bloques image-prompt por guion
-  calidad_imagen: fast           # fast (1K) | balanced (2K) | quality (4K, lento)
+  maximo: 5

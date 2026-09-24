@@ -1,60 +1,77 @@
 ---
-description: Pipeline completo - ideas, guiones e imágenes a partir de un tema semilla
-argument-hint: "<tema> [--n 5] [--plataforma instagram] [--guiones 1] [--sin-imagenes]"
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(python3 scripts/generate_ideas.py:*), Bash(python3 scripts/generate_images.py:*), mcp__mcp-media-toolkit__generate_image_gemini, mcp__mcp-media-toolkit__generate_and_upload_gemini_s3
+description: Pipeline de contenido - ideas, guiones e imágenes a partir de un tema
+argument-hint: --tema "<tema>" [--plataforma linkedin] [--cantidad 1] [--solo-texto] [--dry-run]
+allowed-tools: Read, Write, Edit, Glob, Grep, Skill, Bash(python3 scripts/generate_ideas.py:*), Bash(python3 scripts/generate_images.py:*), mcp__mcp-media-toolkit__generate_image_gemini, mcp__mcp-media-toolkit__generate_and_upload_gemini_s3
 ---
+
+<!--
+Decisiones de diseño:
+- La imagen NO la genera Claude en este comando: al escribir el guion con Write, el hook
+  PostToolUse la genera vía MCP y deja la URL en un .txt. Así hay un único camino para
+  crear imágenes (el mismo que usa cron) y no se generan dos veces.
+- --cantidad = número de piezas completas (idea + guion + imagen). Empezamos simple:
+  una idea -> un guion -> una imagen.
+-->
 
 # Generar contenido
 
-Argumentos recibidos: `$ARGUMENTS`
+Argumentos: `$ARGUMENTS`
 
-## 0. Interpretar argumentos
+## 0. Argumentos
 
-- **Tema**: todo el texto que no sea una opción. Si está vacío, pide el tema y para.
-- `--n N`: número de ideas. Por defecto `pipeline.ideas_por_defecto` de `config/brand_voice.yaml`.
-- `--plataforma P`: limita las ideas a esa plataforma (puede repetirse). Por defecto,
-  las que tienen `activa: true` en `config/plataformas.yaml`.
-- `--guiones G`: cuántas ideas se desarrollan como guion. Por defecto `pipeline.guiones_por_defecto`.
-- `--sin-imagenes`: escribe los bloques `image-prompt` pero no generes imágenes.
+- `--tema "<texto>"` (obligatorio). Si no viene `--tema`, usa como tema el texto suelto; si
+  no hay nada, pide el tema y para.
+- `--plataforma <p>`: una de las claves de `config/plataformas.yaml` (youtube, instagram,
+  linkedin, tiktok). Por defecto `linkedin`.
+- `--cantidad <n>`: número de piezas. Por defecto `1`.
+- `--solo-texto`: ideas y guiones, sin imágenes.
+- `--dry-run`: no escribas archivos, no llames a APIs y no generes texto: solo muestra el plan.
 
-Lee `config/brand_voice.yaml` y `config/plataformas.yaml` antes de seguir.
+## 1. Cargar skills
 
-## 1. Ideas
+Carga las skills **voz-marca** y **estilo-visual** (herramienta Skill) y lee
+`config/brand_voice.yaml` y la entrada de la plataforma en `config/plataformas.yaml`.
 
-Usa la skill **generador-ideas** con el tema, N y las plataformas. Al terminar deben
-estar guardadas en `data/ideas/YYYY-MM-DD_ideas.md` con sus IDs.
+**Si `--dry-run`**, muestra y termina:
+- los parámetros interpretados;
+- la salida de `python3 scripts/generate_ideas.py contexto --tema "<tema>"`;
+- las rutas que se crearían: `data/ideas/<hoy>_ideas.md`,
+  `data/output/guiones/<hoy>_<plataforma>_<slug>.md` (+ `.txt`) y
+  `data/output/imagenes/<hoy>_<plataforma>_<slug>.png`;
+- el aspect ratio y el prompt base que se usarían (y si tiene placeholders sin rellenar);
+- `python3 scripts/generate_images.py --pendientes --dry-run` si hay guiones pendientes.
 
-## 2. Selección
+## 2. Ideas
 
-Elige las G ideas con más potencial (hook más fuerte, ángulo más diferente del banco)
-y explica la elección en una línea por idea.
+Usa la skill **generador-ideas** para generar `--cantidad` ideas del tema para esa
+plataforma y guardarlas en `data/ideas/`.
 
-## 3. Guiones
+## 3. Guion por idea
 
-Para cada idea elegida, usa la skill **voz-marca** y sigue
-`config/prompts/script_prompt.md`. Escribe los bloques `image-prompt` siguiendo la skill
-**estilo-visual** y `config/prompts/image_prompt.md`.
+Para cada idea guardada, escribe el guion siguiendo `config/prompts/script_prompt.md`
+y la skill **voz-marca**. La sección `## Imagen sugerida` sigue
+`config/prompts/image_prompt.md` y la skill **estilo-visual** (solo la escena, en inglés;
+el prompt base se añade al generar).
 
-Guarda cada guion con la herramienta Write en `data/output/YYYY-MM-DD_<slug>.md`
-(slug en minúsculas, sin tildes, con guiones). Si `--sin-imagenes`, añade
-`imagenes: no` al frontmatter.
+Guárdalo **con la herramienta Write** (no Edit, no Bash) en
+`data/output/guiones/YYYY-MM-DD_<plataforma>_<slug-del-titulo>.md`.
 
-## 4. Imágenes
+Si `--solo-texto`, omite la sección `## Imagen sugerida`: sin ella el hook no genera nada.
 
-Al guardar un guion, el hook `on-write-generate-image.sh` se dispara solo:
+## 4-6. Imagen (automática)
 
-- Modo `mcp` (por defecto): te devuelve los prompts completos (con el prompt base) y
-  las instrucciones. Síguelas: llama a la herramienta de mcp-media-toolkit una vez por
-  prompt y después añade la sección "Imágenes generadas" al guion.
-- Modo `script`: el hook genera las imágenes con `scripts/generate_images.py` y te
-  informa del resultado.
-- Modo `off` o `imagenes: no`: no se generan imágenes.
+Al escribir el guion, el hook `.claude/hooks/on-write-generate-image.sh`:
+extrae la descripción de `## Imagen sugerida`, le añade el prompt base de estilo, llama
+al MCP de imágenes y guarda:
+- la imagen en `data/output/imagenes/<mismo nombre>.png`
+- la URL en `data/output/guiones/<mismo nombre>.txt`
 
-Si el hook no se ha ejecutado (por ejemplo, hooks desactivados), genera las imágenes
-tú con `python3 scripts/generate_images.py prompts <guion>` y la herramienta MCP.
+Verás su resultado como contexto "[hook imagen OK/ERROR]". Si no aparece el `.txt`
+(hooks desactivados o fallo), ejecuta `python3 scripts/generate_images.py <guion>` una vez.
+No reintentes más: informa del error.
 
-## 5. Resumen final
+## 7. Resumen
 
-Termina con una tabla: ID de idea, título, plataforma, ruta del guion y nº de imágenes
-(o el error si alguna falló). Lista también las ideas no desarrolladas con su ID para
-retomarlas más tarde.
+Termina con una tabla: ID de idea, título, ruta del guion, URL de la imagen (primera
+línea del `.txt`) o el error. Si el hook avisó de placeholders sin rellenar en el prompt
+base, recuérdalo.

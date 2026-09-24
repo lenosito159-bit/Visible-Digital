@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
-"""Banco de ideas: contexto para generar ideas nuevas y guardado sin duplicados.
+"""Banco de ideas de contenido. Funciona con o sin Claude.
 
-Solo usa la biblioteca estándar.
+  generar   Genera ideas SIN Claude, con la API de Gemini (usa GEMINI_API_KEY).
+  contexto  Muestra el banco y las referencias (lo usa la skill generador-ideas).
+  guardar   Guarda ideas escritas por Claude, descartando duplicados.
+  listar    Lista las ideas guardadas.
 
-Uso:
-    python3 scripts/generate_ideas.py contexto --tema "productividad freelance"
-    python3 scripts/generate_ideas.py guardar --tema "..." --archivo ideas.md [--forzar]
-    python3 scripts/generate_ideas.py guardar --tema "..." < ideas.md
-    python3 scripts/generate_ideas.py listar [--dias 30]
+Ejemplos:
+  python3 scripts/generate_ideas.py generar --tema "precios freelance" --plataforma linkedin --cantidad 3
+  python3 scripts/generate_ideas.py generar --tema "precios freelance" --dry-run
+  python3 scripts/generate_ideas.py guardar --tema "precios freelance" --archivo /tmp/ideas.md
+
+Decisiones de diseño:
+- Las ideas se guardan en Markdown legible (data/ideas/YYYY-MM-DD_ideas.md), no en
+  una base de datos: puedes editarlas a mano y verlas en git.
+- Cada idea recibe un ID YYYYMMDD-NN para enlazarla con su guion.
+- La detección de duplicados es deliberadamente simple (similitud de texto del título
+  y del ángulo). Suficiente para no repetirse; no pretende entender semántica.
 """
 
 from __future__ import annotations
@@ -16,26 +25,19 @@ import argparse
 import datetime as dt
 import re
 import sys
-import unicodedata
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent.parent
-DIR_IDEAS = RAIZ / "data" / "ideas"
-DIR_REFERENCIAS = RAIZ / "data" / "referencias"
-ARCHIVO_IDEAS = re.compile(r"^(\d{4}-\d{2}-\d{2})_ideas\.md$")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import comun  # noqa: E402
+
+UMBRAL_DUPLICADO = 0.72
+PALABRAS_VACIAS = set("a al con de del el en es la las lo los para por que se sin su tu un una y o como mas no te tus mi sus".split())
 CAMPO = re.compile(r"^-\s*\*\*(?P<clave>[^*:]+):?\*\*:?\s*(?P<valor>.*)$")
 ID_IDEA = re.compile(r"^<!--\s*id:\s*(\S+)\s*-->$")
-
-# Umbral de similitud (0-1) a partir del cual una idea se considera duplicada.
-UMBRAL_TITULO = 0.72
-UMBRAL_ANGULO = 0.80
-PALABRAS_VACIAS = {
-    "a", "al", "con", "de", "del", "el", "en", "es", "la", "las", "lo", "los",
-    "para", "por", "que", "se", "sin", "su", "tu", "un", "una", "y", "o", "como",
-    "mas", "no", "te", "tus", "mi", "sus",
-}
+ETIQUETAS = {"angulo": "Ángulo", "plataforma": "Plataforma", "hook": "Hook",
+             "por_que_funcionaria": "Por qué funcionaría", "estado": "Estado"}
 
 
 @dataclass
@@ -43,243 +45,207 @@ class Idea:
     titulo: str
     campos: dict[str, str] = field(default_factory=dict)
     id: str | None = None
-    archivo: str | None = None
 
     @property
     def angulo(self) -> str:
         return self.campos.get("angulo", "")
 
 
-def normalizar(texto: str) -> str:
-    texto = unicodedata.normalize("NFKD", texto.lower())
-    texto = "".join(c for c in texto if not unicodedata.combining(c))
-    return re.sub(r"[^a-z0-9 ]+", " ", texto).strip()
+def _clave(texto: str) -> str:
+    return comun.slugify(texto, 60).replace("-", "_")
 
 
-def tokens(texto: str) -> set[str]:
+def _tokens(texto: str) -> set[str]:
+    palabras = comun.slugify(texto, 500).split("-")
     # Singular aproximado ("portfolios" -> "portfolio") para comparar mejor.
-    return {
-        t[:-1] if len(t) > 4 and t.endswith("s") else t
-        for t in normalizar(texto).split()
-        if t not in PALABRAS_VACIAS and len(t) > 2
-    }
+    return {p[:-1] if len(p) > 4 and p.endswith("s") else p
+            for p in palabras if p not in PALABRAS_VACIAS and len(p) > 2}
 
 
 def similitud(a: str, b: str) -> float:
-    """Máximo entre similitud de secuencia y solapamiento de palabras clave."""
-    na, nb = normalizar(a), normalizar(b)
-    if not na or not nb:
+    if not a or not b:
         return 0.0
-    secuencia = SequenceMatcher(None, na, nb).ratio()
-    ta, tb = tokens(a), tokens(b)
+    secuencia = SequenceMatcher(None, comun.slugify(a, 500), comun.slugify(b, 500)).ratio()
+    ta, tb = _tokens(a), _tokens(b)
     jaccard = len(ta & tb) / len(ta | tb) if ta and tb else 0.0
     return max(secuencia, jaccard)
 
 
-def parsear_ideas(texto: str, archivo: str | None = None) -> list[Idea]:
+def parsear(texto: str) -> list[Idea]:
     ideas: list[Idea] = []
-    actual: Idea | None = None
     for linea in texto.splitlines():
         linea = linea.strip()
         if linea.startswith("### "):
-            actual = Idea(titulo=linea[4:].strip(), archivo=archivo)
-            ideas.append(actual)
-            continue
-        if actual is None:
-            continue
-        if m := ID_IDEA.match(linea):
-            actual.id = m.group(1)
-        elif m := CAMPO.match(linea):
-            clave = normalizar(m.group("clave")).replace(" ", "_")
-            actual.campos[clave] = m.group("valor").strip()
+            ideas.append(Idea(titulo=linea[4:].strip()))
+        elif ideas and (m := ID_IDEA.match(linea)):
+            ideas[-1].id = m.group(1)
+        elif ideas and (m := CAMPO.match(linea)):
+            ideas[-1].campos[_clave(m.group("clave"))] = m.group("valor").strip()
     return ideas
 
 
-def cargar_banco() -> list[Idea]:
-    banco: list[Idea] = []
-    if not DIR_IDEAS.is_dir():
-        return banco
-    for ruta in sorted(DIR_IDEAS.glob("*_ideas.md")):
-        banco.extend(parsear_ideas(ruta.read_text(encoding="utf-8"), ruta.name))
-    return banco
+def banco() -> list[Idea]:
+    return [i for ruta in sorted(comun.DIR_IDEAS.glob("*_ideas.md"))
+            for i in parsear(ruta.read_text(encoding="utf-8"))]
 
 
-def buscar_duplicado(idea: Idea, banco: list[Idea]) -> tuple[Idea, float] | None:
-    mejor: tuple[Idea, float] | None = None
-    for existente in banco:
-        s_titulo = similitud(idea.titulo, existente.titulo)
-        s_angulo = similitud(idea.angulo, existente.angulo) if idea.angulo and existente.angulo else 0.0
-        if s_titulo >= UMBRAL_TITULO or s_angulo >= UMBRAL_ANGULO:
-            puntuacion = max(s_titulo, s_angulo)
-            if mejor is None or puntuacion > mejor[1]:
-                mejor = (existente, puntuacion)
+def duplicado_de(idea: Idea, existentes: list[Idea]) -> tuple[Idea, float] | None:
+    mejor = None
+    for otra in existentes:
+        s = max(similitud(idea.titulo, otra.titulo), similitud(idea.angulo, otra.angulo))
+        if s >= UMBRAL_DUPLICADO and (mejor is None or s > mejor[1]):
+            mejor = (otra, s)
     return mejor
 
 
-def leer_config_simple(ruta: Path, clave: str) -> str | None:
-    """Lee `clave: valor` de un YAML sencillo sin depender de PyYAML."""
-    if not ruta.is_file():
-        return None
-    patron = re.compile(rf"^\s*{re.escape(clave)}:\s*([^#\n]+)")
-    for linea in ruta.read_text(encoding="utf-8").splitlines():
-        if m := patron.match(linea):
-            return m.group(1).strip().strip('"')
-    return None
+def guardar(tema: str, nuevas: list[Idea], forzar: bool = False) -> tuple[list[Idea], list[str]]:
+    """Añade las ideas no duplicadas al archivo del día. Devuelve (guardadas, avisos)."""
+    existentes = banco()
+    aceptadas, avisos = [], []
+    for idea in nuevas:
+        dup = duplicado_de(idea, existentes + aceptadas)
+        if dup and not forzar:
+            avisos.append(f"'{idea.titulo}' se parece a [{dup[0].id}] '{dup[0].titulo}' ({dup[1]:.0%})")
+        else:
+            aceptadas.append(idea)
+    if not aceptadas:
+        return [], avisos
+
+    hoy = dt.date.today()
+    ruta = comun.DIR_IDEAS / f"{hoy.isoformat()}_ideas.md"
+    prefijo = hoy.strftime("%Y%m%d")
+    usados = re.findall(rf"<!--\s*id:\s*{prefijo}-(\d+)", ruta.read_text(encoding="utf-8")) if ruta.exists() else []
+    siguiente = max(map(int, usados), default=0) + 1
+
+    bloques = []
+    for idea in aceptadas:
+        idea.id = f"{prefijo}-{siguiente:02d}"
+        siguiente += 1
+        idea.campos.setdefault("estado", "pendiente")
+        lineas = [f"### {idea.titulo}", f"<!-- id: {idea.id} -->"]
+        lineas += [f"- **{ETIQUETAS.get(k, k.replace('_', ' ').capitalize())}:** {v}" for k, v in idea.campos.items()]
+        bloques.append("\n".join(lineas))
+
+    comun.DIR_IDEAS.mkdir(parents=True, exist_ok=True)
+    with ruta.open("a", encoding="utf-8") as f:
+        if f.tell() == 0:
+            f.write(f"# Ideas {hoy.isoformat()}\n")
+        f.write(f"\n## Tema: {tema} ({dt.datetime.now():%H:%M})\n\n" + "\n\n".join(bloques) + "\n")
+    return aceptadas, avisos
 
 
-def plataformas_activas() -> list[str]:
-    ruta = RAIZ / "config" / "plataformas.yaml"
-    if not ruta.is_file():
-        return []
-    activas, actual = [], None
-    for linea in ruta.read_text(encoding="utf-8").splitlines():
-        if m := re.match(r"^([a-z_]+):\s*$", linea):
-            actual = m.group(1)
-        elif actual and re.match(r"^\s+activa:\s*true", linea):
-            activas.append(actual)
-    return activas
+def informar(guardadas: list[Idea], avisos: list[str]) -> None:
+    ruta = comun.DIR_IDEAS / f"{dt.date.today().isoformat()}_ideas.md"
+    print(f"Guardadas {len(guardadas)} idea(s) en {ruta.relative_to(comun.RAIZ)}")
+    for idea in guardadas:
+        print(f"  [{idea.id}] {idea.titulo}")
+    if avisos:
+        print(f"Descartadas {len(avisos)} por duplicadas (usa --forzar para guardarlas):")
+        for aviso in avisos:
+            print(f"  - {aviso}")
+
+
+def construir_prompt(tema: str, plataforma: str, cantidad: int) -> str:
+    voz = comun.cargar_yaml("brand_voice.yaml")
+    spec = comun.plataforma(plataforma)
+    plantilla = (comun.DIR_CONFIG / "prompts" / "idea_prompt.md").read_text(encoding="utf-8")
+    plantilla = re.sub(r"<!--.*?-->\s*", "", plantilla, flags=re.DOTALL)
+    existentes = "\n".join(f"- {i.titulo}" for i in banco()) or "- (ninguna)"
+    valores = {
+        "marca": voz.get("marca", {}).get("nombre", ""),
+        "audiencia": voz.get("marca", {}).get("audiencia", ""),
+        "tono": voz.get("tono", {}).get("principal", ""),
+        "tema": tema,
+        "plataforma": plataforma,
+        "tipo_contenido": spec.get("tipo_contenido", ""),
+        "cantidad": str(cantidad),
+        "ideas_existentes": existentes,
+    }
+    return re.sub(r"\{\{(\w+)\}\}", lambda m: valores.get(m.group(1), m.group(0)), plantilla)
+
+
+def cmd_generar(args: argparse.Namespace) -> int:
+    prompt = construir_prompt(args.tema, args.plataforma, args.cantidad)
+    if args.dry_run:
+        print(f"[dry-run] Modelo: {comun.MODELO_TEXTO}")
+        print(f"[dry-run] Destino: data/ideas/{dt.date.today().isoformat()}_ideas.md")
+        print("[dry-run] Prompt que se enviaría:\n")
+        print(prompt)
+        return 0
+    try:
+        respuesta = comun.texto_gemini(prompt)
+    except RuntimeError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
+    ideas = parsear(respuesta)
+    if not ideas:
+        print("El modelo no devolvió ideas en el formato esperado. Respuesta:\n" + respuesta, file=sys.stderr)
+        return 1
+    for idea in ideas:
+        idea.campos["plataforma"] = args.plataforma
+    informar(*guardar(args.tema, ideas[: args.cantidad], args.forzar))
+    return 0
 
 
 def cmd_contexto(args: argparse.Namespace) -> int:
-    banco = cargar_banco()
-    config = RAIZ / "config" / "brand_voice.yaml"
-    print(f"# Contexto para el tema: {args.tema}\n")
-    print(f"- Ideas por defecto: {leer_config_simple(config, 'ideas_por_defecto') or 5}")
-    print(f"- Plataformas activas: {', '.join(plataformas_activas()) or '(ninguna)'}")
-    print(f"- Ideas en el banco: {len(banco)}\n")
-
-    parecidas = sorted(
-        ((i, similitud(args.tema, f"{i.titulo} {i.angulo}")) for i in banco),
-        key=lambda par: par[1],
-        reverse=True,
-    )
-    parecidas = [(i, s) for i, s in parecidas[: args.max_parecidas] if s > 0.2]
-    print("## Ideas previas más parecidas al tema\n")
-    if parecidas:
-        for idea, s in parecidas:
-            print(f"- [{idea.id or 's/id'}] {idea.titulo} — ángulo: {idea.angulo or '-'} ({s:.0%})")
-    else:
-        print("- (ninguna)")
-
-    print("\n## Todos los títulos del banco (no repetir)\n")
-    if banco:
-        for idea in banco:
-            print(f"- [{idea.id or 's/id'}] {idea.titulo}")
-    else:
+    ideas = banco()
+    print(f"# Contexto para: {args.tema}\n")
+    print(f"Plataformas disponibles: {', '.join(comun.plataformas())}\n")
+    print("## Ideas del banco (no repetir)\n")
+    ordenadas = sorted(ideas, key=lambda i: similitud(args.tema, f"{i.titulo} {i.angulo}"), reverse=True)
+    for idea in ordenadas or []:
+        print(f"- [{idea.id}] {idea.titulo} — {idea.angulo or 'sin ángulo'}")
+    if not ideas:
         print("- (banco vacío)")
-
-    print("\n## Referencias en data/referencias/\n")
-    referencias = [
-        p for p in sorted(DIR_REFERENCIAS.rglob("*")) if p.is_file() and not p.name.startswith(".")
-    ] if DIR_REFERENCIAS.is_dir() else []
-    if referencias:
-        for ruta in referencias:
-            print(f"- {ruta.relative_to(RAIZ)}")
-    else:
+    print("\n## Referencias (data/referencias/)\n")
+    refs = [p for p in sorted(comun.DIR_REFERENCIAS.rglob("*")) if p.is_file() and not p.name.startswith(".")]
+    for ruta in refs:
+        print(f"- {ruta.relative_to(comun.RAIZ)}")
+    if not refs:
         print("- (sin referencias)")
     return 0
 
 
-def siguiente_numero(ruta: Path, prefijo: str) -> int:
-    if not ruta.is_file():
-        return 1
-    numeros = [
-        int(m.group(1))
-        for m in re.finditer(rf"<!--\s*id:\s*{prefijo}-(\d+)\s*-->", ruta.read_text(encoding="utf-8"))
-    ]
-    return max(numeros, default=0) + 1
-
-
-def formatear_idea(idea: Idea) -> str:
-    etiquetas = {
-        "angulo": "Ángulo",
-        "plataforma": "Plataforma",
-        "formato": "Formato",
-        "hook": "Hook",
-        "por_que_funcionaria": "Por qué funcionaría",
-    }
-    lineas = [f"### {idea.titulo}", f"<!-- id: {idea.id} -->"]
-    for clave, valor in idea.campos.items():
-        lineas.append(f"- **{etiquetas.get(clave, clave.replace('_', ' ').capitalize())}:** {valor}")
-    if "estado" not in idea.campos:
-        lineas.append("- **Estado:** pendiente")
-    return "\n".join(lineas) + "\n"
-
-
 def cmd_guardar(args: argparse.Namespace) -> int:
     texto = Path(args.archivo).read_text(encoding="utf-8") if args.archivo else sys.stdin.read()
-    nuevas = parsear_ideas(texto)
-    if not nuevas:
-        print("No se encontró ninguna idea. Cada idea debe empezar con '### <título>'.", file=sys.stderr)
+    ideas = parsear(texto)
+    if not ideas:
+        print("No hay ideas: cada una debe empezar con '### <título>'.", file=sys.stderr)
         return 1
-
-    banco = cargar_banco()
-    aceptadas: list[Idea] = []
-    duplicadas: list[tuple[Idea, Idea, float]] = []
-    for idea in nuevas:
-        duplicado = buscar_duplicado(idea, banco + aceptadas)
-        if duplicado and not args.forzar:
-            duplicadas.append((idea, *duplicado))
-        else:
-            aceptadas.append(idea)
-
-    hoy = dt.date.today()
-    ruta = DIR_IDEAS / f"{hoy.isoformat()}_ideas.md"
-    prefijo = hoy.strftime("%Y%m%d")
-    numero = siguiente_numero(ruta, prefijo)
-    for idea in aceptadas:
-        idea.id = f"{prefijo}-{numero:02d}"
-        numero += 1
-
-    if aceptadas:
-        DIR_IDEAS.mkdir(parents=True, exist_ok=True)
-        nuevo = not ruta.exists()
-        with ruta.open("a", encoding="utf-8") as f:
-            if nuevo:
-                f.write(f"# Ideas {hoy.isoformat()}\n")
-            f.write(f"\n## Tema: {args.tema} ({dt.datetime.now():%H:%M})\n\n")
-            f.write("\n".join(formatear_idea(i) for i in aceptadas))
-
-    print(f"Guardadas {len(aceptadas)} ideas en {ruta.relative_to(RAIZ)}:")
-    for idea in aceptadas:
-        print(f"  [{idea.id}] {idea.titulo}")
-    if duplicadas:
-        print(f"\nDescartadas {len(duplicadas)} por parecerse a ideas existentes:")
-        for idea, existente, s in duplicadas:
-            print(f"  - '{idea.titulo}' ≈ [{existente.id or 's/id'}] '{existente.titulo}' ({s:.0%})")
-        print("Propón ideas nuevas para sustituirlas (o usa --forzar para guardarlas igualmente).")
+    informar(*guardar(args.tema, ideas, args.forzar))
     return 0
 
 
-def cmd_listar(args: argparse.Namespace) -> int:
-    limite = dt.date.today() - dt.timedelta(days=args.dias) if args.dias else None
-    for ruta in sorted(DIR_IDEAS.glob("*_ideas.md")) if DIR_IDEAS.is_dir() else []:
-        m = ARCHIVO_IDEAS.match(ruta.name)
-        if limite and m and dt.date.fromisoformat(m.group(1)) < limite:
-            continue
-        for idea in parsear_ideas(ruta.read_text(encoding="utf-8")):
-            estado = idea.campos.get("estado", "-")
-            print(f"[{idea.id or 's/id'}] {idea.titulo} · {idea.campos.get('plataforma', '-')} · {estado}")
+def cmd_listar(_: argparse.Namespace) -> int:
+    for idea in banco():
+        print(f"[{idea.id}] {idea.titulo} · {idea.campos.get('plataforma', '-')} · {idea.campos.get('estado', '-')}")
     return 0
 
 
 def main() -> int:
+    comun.cargar_env()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="comando", required=True)
 
-    p = sub.add_parser("contexto", help="Muestra banco de ideas y referencias para un tema")
+    p = sub.add_parser("generar", help="Genera ideas con Gemini (sin Claude)")
     p.add_argument("--tema", required=True)
-    p.add_argument("--max-parecidas", type=int, default=5)
+    p.add_argument("--plataforma", default="linkedin", choices=list(comun.plataformas()))
+    p.add_argument("--cantidad", type=int, default=3)
+    p.add_argument("--forzar", action="store_true", help="Guardar también las posibles duplicadas")
+    p.add_argument("--dry-run", action="store_true", help="Muestra el prompt sin llamar a la API")
+    p.set_defaults(func=cmd_generar)
+
+    p = sub.add_parser("contexto", help="Banco de ideas y referencias para un tema")
+    p.add_argument("--tema", required=True)
     p.set_defaults(func=cmd_contexto)
 
-    p = sub.add_parser("guardar", help="Añade ideas al archivo del día, descartando duplicados")
+    p = sub.add_parser("guardar", help="Guarda ideas en Markdown (archivo o stdin)")
     p.add_argument("--tema", required=True)
-    p.add_argument("--archivo", help="Markdown con las ideas (por defecto, stdin)")
-    p.add_argument("--forzar", action="store_true", help="Guardar también las posibles duplicadas")
+    p.add_argument("--archivo")
+    p.add_argument("--forzar", action="store_true")
     p.set_defaults(func=cmd_guardar)
 
-    p = sub.add_parser("listar", help="Lista las ideas del banco")
-    p.add_argument("--dias", type=int, help="Solo las de los últimos N días")
+    p = sub.add_parser("listar", help="Lista el banco de ideas")
     p.set_defaults(func=cmd_listar)
 
     args = parser.parse_args()

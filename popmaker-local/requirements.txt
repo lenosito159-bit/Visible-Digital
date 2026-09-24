@@ -1,0 +1,3 @@
+# Única dependencia de los scripts: leer config/*.yaml.
+# (La generación de imágenes usa el MCP vía npx o la API de Gemini con urllib.)
+pyyaml>=6.0

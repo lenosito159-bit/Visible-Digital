@@ -1,113 +1,50 @@
 #!/usr/bin/env bash
-# Hook PostToolUse (Write|Edit): cuando se guarda un guion en data/output/*.md con
-# bloques ```image-prompt```, lanza la generación de imágenes.
+# Hook PostToolUse (matcher: Write), configurado en .claude/settings.json.
 #
-# POPMAKER_IMAGE_MODE decide cómo:
-#   mcp    (defecto) devuelve a Claude los prompts completos para que llame a mcp-media-toolkit
-#   script genera aquí mismo con scripts/generate_images.py (API de Gemini directa)
-#   off    no hace nada
+# Cuando Claude escribe un guion en data/output/guiones/*.md que tiene una sección
+# "## Imagen sugerida", genera la imagen llamando al MCP (mcp-media-toolkit) y guarda
+# la URL en un .txt junto al guion. Todo el trabajo lo hace scripts/generate_images.py;
+# este hook solo decide si toca ejecutarlo.
 #
-# Nunca bloquea a Claude: ante cualquier error sale con 0 y, si procede, lo informa.
+# Decisiones de diseño:
+# - El hook llama al MCP por stdio a través del script, no le pide a Claude que lo haga:
+#   así la imagen se genera aunque Claude se olvide, y el mismo código sirve para cron.
+# - Nunca bloquea a Claude (siempre sale con 0). El resultado se le pasa como
+#   "additionalContext" para que lo incluya en su resumen.
+# - Variables para controlarlo:
+#     POPMAKER_IMAGENES=off  desactiva la generación (modo "solo texto")
+#     POPMAKER_DRY_RUN=1     muestra qué haría sin generar nada
 
 set -uo pipefail
 
 RAIZ="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
-export POPMAKER_RAIZ="$RAIZ"
-export POPMAKER_MODO="${POPMAKER_IMAGE_MODE:-mcp}"
-export POPMAKER_ENTRADA="$(cat)"
+[ "${POPMAKER_IMAGENES:-on}" = "off" ] && exit 0
 
-[ "$POPMAKER_MODO" = "off" ] && exit 0
-command -v python3 >/dev/null 2>&1 || exit 0
+# Ruta del archivo escrito (el JSON del evento llega por stdin).
+ARCHIVO="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("tool_input",{}).get("file_path",""))' 2>/dev/null)"
 
-python3 - <<'PY'
-import json
-import os
-import subprocess
-import sys
-from pathlib import Path
+# Solo guiones de data/output/guiones/ con sección "## Imagen sugerida".
+case "$ARCHIVO" in
+  "$RAIZ"/data/output/guiones/*.md) ;;
+  *) exit 0 ;;
+esac
+grep -qE '^##[[:space:]]+Imagen sugerida' "$ARCHIVO" 2>/dev/null || exit 0
+# Ya tiene imagen (.txt con la URL): no regenerar. Para forzar, borra el .txt.
+[ -f "${ARCHIVO%.md}.txt" ] && exit 0
 
-raiz = Path(os.environ["POPMAKER_RAIZ"]).resolve()
-modo = os.environ["POPMAKER_MODO"]
-try:
-    entrada = json.loads(os.environ.get("POPMAKER_ENTRADA") or "{}")
-except json.JSONDecodeError:
-    sys.exit(0)
+OPCIONES=()
+[ "${POPMAKER_DRY_RUN:-0}" = "1" ] && OPCIONES+=(--dry-run)
 
-ruta = (entrada.get("tool_input") or {}).get("file_path") or ""
-if not ruta:
-    sys.exit(0)
-ruta = Path(ruta)
-if not ruta.is_absolute():
-    ruta = Path(entrada.get("cwd") or raiz) / ruta
-ruta = ruta.resolve()
+SALIDA="$(cd "$RAIZ" && python3 scripts/generate_images.py "$ARCHIVO" "${OPCIONES[@]+"${OPCIONES[@]}"}" 2>&1)"
+CODIGO=$?
 
-# Solo guiones: data/output/<archivo>.md (no subcarpetas como imagenes/).
-if ruta.suffix != ".md" or ruta.parent != raiz / "data" / "output" or not ruta.is_file():
-    sys.exit(0)
-
-script = raiz / "scripts" / "generate_images.py"
-
-
-def responder(texto: str) -> None:
-    print(json.dumps({
-        "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": texto}
-    }, ensure_ascii=False))
-
-
-try:
-    info = json.loads(subprocess.run(
-        [sys.executable, str(script), "prompts", str(ruta)],
-        capture_output=True, text=True, check=True, cwd=raiz,
-    ).stdout)
-except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-    responder(f"[popmaker] No se pudieron leer los prompts de {ruta.name}: {e}")
-    sys.exit(0)
-
-if info["omitir"] or not info["prompts"]:
-    sys.exit(0)
-
-aviso = ""
-if info["prompt_base_con_placeholders"]:
-    aviso = ("\nAviso: el prompt base de .claude/skills/estilo-visual/SKILL.md aún tiene "
-             "placeholders sin rellenar ([COLOR_PRIMARIO]...). Díselo al usuario en el resumen.")
-
-if modo == "script":
-    proceso = subprocess.run(
-        [sys.executable, str(script), "generar", str(ruta)],
-        capture_output=True, text=True, cwd=raiz,
-    )
-    salida = (proceso.stdout + proceso.stderr).strip()
-    responder(f"[popmaker] Resultado de generar las imágenes de {ruta.name} con scripts/generate_images.py "
-              f"(código {proceso.returncode}):\n{salida}{aviso}")
-    sys.exit(0)
-
-if info["s3"]:
-    herramienta = "mcp__mcp-media-toolkit__generate_and_upload_gemini_s3"
-    extra = lambda p: f', key="{info["s3_prefijo"]}/{p["archivo"]}.png"'
-else:
-    herramienta = "mcp__mcp-media-toolkit__generate_image_gemini"
-    extra = lambda p: ""
-
-lineas = [
-    f"[popmaker] El guion {ruta.relative_to(raiz)} tiene {len(info['prompts'])} prompt(s) de imagen.",
-    f"Genera cada imagen llamando a {herramienta} con estos parámetros exactos "
-    "(el prompt ya incluye el prompt base de estilo-visual; no lo modifiques):",
-    "",
-]
-for p in info["prompts"]:
-    lineas.append(
-        f'{p["n"]}. prompt="{p["prompt"]}", aspect_ratio="{info["aspect_ratio"]}", '
-        f'quality="{info["calidad"]}", output_dir="{info["output_dir"]}"{extra(p)}'
-    )
-lineas += [
-    "",
-    f"Después añade al final del guion (con Edit) una sección '## Imágenes generadas' con la línea "
-    f"'<!-- imagenes-generadas -->' y una línea por imagen: ruta local"
-    + (" y URL pública" if info["s3"] else "") + ", o el error si falló. "
-    "Esa marca evita que este hook vuelva a pedir las imágenes.",
-    "Si la herramienta MCP no está disponible, ejecuta en su lugar: "
-    f"python3 scripts/generate_images.py generar {ruta.relative_to(raiz)}",
-]
-responder("\n".join(lineas) + aviso)
-PY
+# Devuelve el resultado a Claude como contexto adicional.
+SALIDA="$SALIDA" CODIGO="$CODIGO" python3 -c '
+import json, os
+estado = "OK" if os.environ["CODIGO"] == "0" else "ERROR"
+print(json.dumps({"hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
+    "additionalContext": f"[hook imagen {estado}]\n" + os.environ["SALIDA"],
+}}, ensure_ascii=False))
+'
 exit 0

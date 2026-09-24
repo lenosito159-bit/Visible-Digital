@@ -1,75 +1,55 @@
 ---
 name: estilo-visual
-description: Guía de estilo visual de la marca. Úsala SIEMPRE que vayas a escribir un prompt de imagen, llamar a una herramienta de generación de imágenes (mcp-media-toolkit) o revisar si una imagen encaja con la marca. Define paleta, tipo de imagen, referencias, elementos prohibidos y el prompt base que se añade a toda descripción de imagen.
+description: Estilo visual de la marca. Úsala siempre que escribas la sección "Imagen sugerida" de un guion, un prompt de imagen, llames a mcp-media-toolkit o revises si una imagen encaja con la marca. Define paleta, tipo de imagen, referencias, elementos a evitar y el prompt base de estilo.
 ---
 
-# Estilo visual de la marca
+# Estilo visual
 
-> Edita los valores entre corchetes (`[ASÍ]`). El script `scripts/generate_images.py`
-> lee el bloque "Prompt base" de este archivo: edita el texto entre los dos
-> comentarios `prompt-base` pero no borres los comentarios.
+<!-- Decisión de diseño: el "Prompt base" se añade automáticamente al generar
+(scripts/generate_images.py lo lee de este archivo). Los guiones solo describen la
+escena; así, si cambias el estilo, regeneras las imágenes sin reescribir guiones.
+Edita lo que esté entre [CORCHETES]. -->
 
 ## Paleta de colores
 
-| Rol        | Color                  | Uso                                        |
-| ---------- | ---------------------- | ------------------------------------------ |
-| Primario   | `[COLOR_PRIMARIO]`     | Sujeto principal, acentos, elementos clave |
-| Secundario | `[COLOR_SECUNDARIO]`   | Detalles, sombras de color, apoyo          |
-| Fondo      | `[COLOR_FONDO]`        | Fondos lisos o degradados suaves           |
-| Acento     | `[COLOR_ACENTO]`       | Opcional: un solo punto de atención        |
+| Rol        | Color                | Uso                                   |
+| ---------- | -------------------- | ------------------------------------- |
+| Primario   | `[COLOR_PRIMARIO]`   | Sujeto principal y acentos            |
+| Secundario | `[COLOR_SECUNDARIO]` | Detalles y apoyo                      |
+| Fondo      | `[COLOR_FONDO]`      | Fondos lisos o degradados suaves      |
 
-Describe los colores en el prompt con palabras y código hex, por ejemplo
-"deep teal (#0F5257)". Los modelos respetan mejor ambos juntos.
+Escribe cada color con nombre y hex, ej.: `deep teal (#0F5257)`.
 
 ## Tipo de imagen
 
-- **Tipo principal:** `[TIPO_DE_IMAGEN]` (ej.: ilustración flat, fotorrealismo editorial, 3D render suave, collage)
-- **Encuadre preferido:** `[ENCUADRE]` (ej.: plano medio, cenital, primer plano)
-- **Iluminación:** `[ILUMINACION]` (ej.: luz natural suave, estudio con contraluz)
-- **Textura / acabado:** `[ACABADO]` (ej.: grano de película sutil, mate, limpio)
+- **Tipo:** `[TIPO_DE_IMAGEN]` (ilustración flat, fotorrealismo editorial, 3D suave, collage…)
+- **Iluminación:** `[ILUMINACION]` (luz natural suave, estudio con contraluz…)
+- **Acabado:** `[ACABADO]` (limpio, grano de película sutil, mate…)
 
 ## Referencias de estilo
 
-- Estética: `[REFERENCIA_DE_ESTILO]` (ej.: minimalismo escandinavo, Bauhaus, Y2K)
-- Artistas o estudios: `[REFERENCIA_ARTISTA]`
-- Marcas con un look parecido: `[REFERENCIA_MARCA]`
-- Imágenes propias de referencia: `data/referencias/` (míralas antes de escribir prompts si existen)
+- Estética: `[REFERENCIA_DE_ESTILO]` (minimalismo escandinavo, Bauhaus, Y2K…)
+- Artistas / marcas con un look parecido: `[REFERENCIA_ARTISTA_O_MARCA]`
+- Imágenes propias: `data/referencias/`
 
-No copies el estilo de un artista vivo por su nombre en el prompt final: tradúcelo a
-rasgos concretos (paleta, trazo, composición).
+En el prompt, traduce las referencias a rasgos concretos (paleta, trazo, composición)
+en vez de nombrar a artistas vivos.
 
 ## Elementos a evitar
 
-- Texto dentro de la imagen (los modelos lo deforman). El texto va en el copy.
-- Logotipos o marcas de terceros.
-- Caras de personas reales reconocibles.
-- `[ELEMENTO_PROHIBIDO_1]`
-- `[ELEMENTO_PROHIBIDO_2]`
+- Texto dentro de la imagen (los modelos lo deforman): el texto va en el copy.
+- Logos de terceros y personas reales reconocibles.
+- `[ELEMENTO_A_EVITAR]`
+
+## Cómo escribir la "Imagen sugerida"
+
+Ver `config/prompts/image_prompt.md`: en inglés, sujeto + escena + composición + emoción,
+sin colores ni estilo (los pone el prompt base).
 
 ## Prompt base
 
-Toda imagen que se genere lleva este bloque al final, después del sujeto y la escena.
-
-- En los guiones (`data/output/*.md`), los bloques `image-prompt` llevan **solo** sujeto,
-  escena y emoción. El prompt base se añade al generar (lo hacen el hook y
-  `scripts/generate_images.py`), así puedes cambiar el estilo y regenerar sin tocar los guiones.
-- Si llamas a mcp-media-toolkit a mano, pega tú el bloque al final del prompt.
+Edita solo el texto entre los dos comentarios `prompt-base`; no borres los comentarios.
 
 <!-- prompt-base:inicio -->
 Style: [TIPO_DE_IMAGEN], [REFERENCIA_DE_ESTILO]. Color palette: primary [COLOR_PRIMARIO], secondary [COLOR_SECUNDARIO], background [COLOR_FONDO]. Lighting: [ILUMINACION]. Finish: [ACABADO]. Clean composition with generous negative space. No text, no letters, no logos, no watermarks.
 <!-- prompt-base:fin -->
-
-## Cómo escribir un prompt de imagen
-
-1. **Sujeto**: qué se ve, en concreto ("una taza de café humeante sobre un portátil abierto").
-2. **Escena y composición**: dónde está, encuadre, qué ocupa cada tercio.
-3. **Emoción**: qué debe sentir quien la ve, ligado al mensaje del guion.
-4. **Prompt base**: pega el bloque de arriba.
-
-Escribe los prompts en inglés: los modelos de Gemini siguen mejor las instrucciones
-visuales en inglés. El resto del contenido sigue en español.
-
-## Formato según plataforma
-
-Usa el `aspect_ratio` indicado en `config/plataformas.yaml`. Valores que admite
-mcp-media-toolkit: `1:1`, `16:9`, `9:16`, `4:3`, `3:4`.

@@ -1,78 +1,48 @@
 ---
 name: generador-ideas
-description: Genera ideas de contenido nuevas a partir de un tema semilla, sin repetir las del banco de ideas (data/ideas/) y apoyándose en las referencias (data/referencias/). Úsala cuando el usuario pida ideas, un calendario de contenido o ejecute /generar-contenido.
+description: Genera ideas de contenido nuevas a partir de un tema semilla, sin repetir las del banco (data/ideas/) y apoyándose en las referencias (data/referencias/). Úsala cuando el usuario pida ideas de contenido o ejecute /generar-contenido.
 ---
 
 # Generador de ideas
 
+<!-- Decisión de diseño: Claude escribe las ideas (mejor criterio) y el script
+scripts/generate_ideas.py las guarda y detecta duplicados (reglas deterministas).
+El mismo script puede generar ideas sin Claude: `generate_ideas.py generar`. -->
+
 ## Entradas
 
-- **Tema semilla**: lo da el usuario (ej.: "productividad para freelancers").
-- **N**: número de ideas. Por defecto, `ideas_por_defecto` de `config/brand_voice.yaml` (5).
-- **Plataformas**: las que indique el usuario o, si no, las activas en `config/plataformas.yaml`.
+- **Tema semilla** (obligatorio).
+- **Cantidad N** de ideas (por defecto 3; en `/generar-contenido`, `--cantidad`).
+- **Plataforma**: una clave de `config/plataformas.yaml`.
 
 ## Proceso
 
-### 1. Reunir contexto
+1. **Contexto**: ejecuta
+   `python3 scripts/generate_ideas.py contexto --tema "<tema>"`.
+   Lista las ideas existentes (las más parecidas al tema primero) y los archivos de
+   `data/referencias/`. Lee las referencias que parezcan relevantes.
 
-Ejecuta:
+2. **Análisis del tema**: identifica el problema o deseo de la audiencia (skill
+   `voz-marca`), 3-5 subtemas y qué ángulos ya están cubiertos en el banco.
 
-```bash
-python3 scripts/generate_ideas.py contexto --tema "<tema semilla>"
-```
+3. **Generar N ideas** con el formato de `config/prompts/idea_prompt.md`:
+   título tentativo, ángulo único, plataforma objetivo, hook y por qué funcionaría.
+   Ángulos variados: error común, tutorial, opinión contraria, caso real, comparativa,
+   lista, mito vs. realidad.
 
-Devuelve los títulos ya existentes en `data/ideas/`, los archivos de
-`data/referencias/` y las ideas previas más parecidas al tema. Lee también las
-referencias que parezcan relevantes.
+4. **Guardar**: escribe las ideas en un archivo temporal (ej. `/tmp/ideas.md`) y ejecuta
+   `python3 scripts/generate_ideas.py guardar --tema "<tema>" --archivo /tmp/ideas.md`.
+   Se añaden a `data/ideas/YYYY-MM-DD_ideas.md` con un ID (`YYYYMMDD-NN`).
 
-### 2. Analizar el tema semilla
-
-Antes de proponer nada, escribe para ti:
-
-- El **problema o deseo** de la audiencia (ver skill `voz-marca`) que toca el tema.
-- 3-5 **subtemas** o tensiones dentro del tema.
-- Qué ángulos **ya están cubiertos** en el banco de ideas.
-
-### 3. Generar N ideas
-
-Sigue `config/prompts/idea_prompt.md`. Cada idea incluye:
-
-- **Título tentativo**: como lo leería la audiencia, no como una etiqueta interna.
-- **Ángulo único**: qué la diferencia de lo que ya hay (en el banco y en general).
-- **Plataforma objetivo**: una, de `config/plataformas.yaml`.
-- **Formato**: carrusel, vídeo corto, hilo, post, artículo…
-- **Hook propuesto**: la primera frase.
-- **Por qué funcionaría**: 1-2 frases con la razón (dolor concreto, curiosidad, dato, tendencia, contraste).
-
-Varía los ángulos: mezcla al menos tres tipos entre error común, tutorial paso a
-paso, opinión contraria, caso real, comparativa, lista, mito vs. realidad y
-detrás de cámaras.
-
-### 4. Evitar duplicados
-
-Descarta o reformula cualquier idea cuyo título o ángulo se parezca a uno del banco.
-El script lo comprueba al guardar; si marca una como duplicada, sustitúyela.
-
-### 5. Guardar
-
-Escribe las ideas en un archivo temporal con el formato de abajo y guárdalas con:
-
-```bash
-python3 scripts/generate_ideas.py guardar --tema "<tema semilla>" --archivo <archivo_temporal.md>
-```
-
-El script las añade a `data/ideas/YYYY-MM-DD_ideas.md` (creándolo si no existe),
-les asigna un ID (`YYYYMMDD-NN`) y avisa de posibles duplicados.
+5. **Duplicados**: si el script descarta alguna por parecerse a una existente, propón
+   otra con un ángulo distinto y vuelve a guardar (máximo 2 intentos).
 
 ## Formato de cada idea
 
 ```markdown
 ### <Título tentativo>
-- **Ángulo:** ...
-- **Plataforma:** instagram
-- **Formato:** carrusel
-- **Hook:** ...
-- **Por qué funcionaría:** ...
+- **Ángulo:** <qué la hace distinta>
+- **Plataforma:** <plataforma>
+- **Hook:** <primera frase, máx. 15 palabras>
+- **Por qué funcionaría:** <1-2 frases>
 ```
-
-Usa exactamente estas etiquetas: el script las lee para detectar duplicados.

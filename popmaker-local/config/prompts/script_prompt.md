@@ -1,59 +1,44 @@
-# Prompt: guion / texto
+<!--
+Plantilla del guion. La sigue Claude en /generar-contenido.
+La sección "## Imagen sugerida" es el contrato con el hook y con
+scripts/generate_images.py: no cambies su título.
+-->
+# Instrucciones para el guion
 
-Convierte la idea en una pieza lista para publicar, siguiendo la skill `voz-marca`,
-`config/brand_voice.yaml` y la especificación de la plataforma en
-`config/plataformas.yaml`.
+Convierte la idea en una pieza lista para publicar siguiendo la skill `voz-marca`,
+`config/brand_voice.yaml` (tono, palabras prohibidas, longitud) y la entrada de la
+plataforma en `config/plataformas.yaml` (formato, estructura).
 
-**Idea:** {{idea}}
-**Plataforma:** {{plataforma}}  ·  **Formato:** {{formato}}
+Reglas: una sola idea central, una sola CTA, longitud de `longitud_por_plataforma`.
 
-## Reglas
+# Formato del archivo
 
-- Una sola idea central y una sola CTA (elige una de `estructura.cta.opciones`).
-- Respeta la longitud de la plataforma.
-- Hook: el propuesto en la idea, mejorado si hace falta (máx. 15 palabras).
-- Ningún término de `evitar`.
+Ruta: `data/output/guiones/YYYY-MM-DD_<plataforma>_<slug-del-titulo>.md`
 
-## Estructura del archivo de salida
-
-Guarda en `data/output/YYYY-MM-DD_<slug>.md` con exactamente esta forma:
-
-````markdown
+```markdown
 ---
-idea_id: <ID de la idea, ej. 20260924-03>
+idea_id: <ID de la idea, ej. 20260924-01>
 titulo: <título final>
-plataforma: <instagram | tiktok | linkedin | x | blog>
-formato: <carrusel | video_corto | post | hilo | articulo>
-aspect_ratio: <el de la plataforma>
+plataforma: <youtube | instagram | linkedin | tiktok>
 fecha: YYYY-MM-DD
-estado: borrador
 ---
 
 # <Título final>
 
 ## Hook
-<hook>
+<primera línea / primeros segundos>
 
 ## Desarrollo
-<cuerpo; en carrusel, una sección "### Slide N" por slide;
-en vídeo, "### Escena N" con [PLANO], [TEXTO EN PANTALLA] y [VOZ]>
+<cuerpo. YouTube y TikTok: "### Escena N" con [PLANO], [TEXTO EN PANTALLA] y [VOZ].
+Instagram: "### Slide N". LinkedIn: párrafos cortos.>
 
 ## CTA
-<cta>
+<una sola llamada a la acción>
 
 ## Copy de publicación
-<caption / texto del post con hashtags>
+<texto que acompaña a la publicación, con hashtags>
 
-## Prompts de imagen
-
-```image-prompt
-<prompt 1: sujeto, escena, composición y emoción, en inglés. SIN el prompt base>
+## Imagen sugerida
+<UNA descripción en inglés de la imagen: sujeto, escena, composición y emoción.
+Sin el prompt base de estilo: se añade automáticamente al generar.>
 ```
-
-```image-prompt
-<prompt 2…>
-```
-````
-
-Usa tantos bloques `image-prompt` como `imagenes` indique la plataforma (sin superar
-`pipeline.imagenes_por_guion`). El primero es la portada.

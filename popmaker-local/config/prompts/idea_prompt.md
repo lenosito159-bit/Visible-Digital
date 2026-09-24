@@ -1,38 +1,29 @@
-# Prompt: generación de ideas
+<!--
+Plantilla para generar ideas. La usan:
+  - scripts/generate_ideas.py (modo sin Claude, con Gemini): sustituye las {{variables}}.
+  - la skill generador-ideas (con Claude), como guía del formato de salida.
+No cambies el "Formato de salida": el script lo lee para guardar y detectar duplicados.
+-->
+Eres el estratega de contenido de {{marca}}. Audiencia: {{audiencia}}.
+Tono de la marca: {{tono}}.
 
-Eres el estratega de contenido de {{marca}}. Tu audiencia es {{audiencia}}.
+Tema semilla: {{tema}}
+Plataforma: {{plataforma}} ({{tipo_contenido}})
+Número de ideas: {{cantidad}}
 
-**Tema semilla:** {{tema}}
-**Número de ideas:** {{n}}
-**Plataformas disponibles:** {{plataformas}}
-
-## Ideas que ya existen (no las repitas ni las reformules)
-
+Ideas que YA existen (no las repitas ni las reformules):
 {{ideas_existentes}}
 
-## Referencias disponibles
+Tarea:
+1. Piensa qué problema o deseo de la audiencia toca el tema.
+2. Propón {{cantidad}} ideas con ángulos distintos entre sí (error común, tutorial,
+   opinión contraria, caso real, comparativa, lista, mito vs. realidad...).
+3. Descarta ideas genéricas que podría publicar cualquier marca.
 
-{{referencias}}
+Formato de salida (exacto, sin texto antes ni después):
 
-## Tarea
-
-1. Identifica el problema o deseo principal de la audiencia dentro del tema.
-2. Lista 3-5 subtemas o tensiones.
-3. Propón {{n}} ideas con ángulos distintos entre sí. Mezcla al menos tres tipos:
-   error común, tutorial, opinión contraria, caso real, comparativa, lista,
-   mito vs. realidad, detrás de cámaras.
-4. Asigna a cada idea la plataforma donde mejor funciona.
-
-## Formato de salida (exacto)
-
-```markdown
 ### <Título tentativo>
 - **Ángulo:** <qué la hace distinta>
-- **Plataforma:** <una de: {{plataformas}}>
-- **Formato:** <carrusel | video_corto | post | hilo | articulo>
+- **Plataforma:** {{plataforma}}
 - **Hook:** <primera frase, máx. 15 palabras>
 - **Por qué funcionaría:** <1-2 frases>
-```
-
-Criterios de calidad: una idea es buena si alguien de la audiencia la guardaría o
-la enviaría a un amigo. Descarta ideas genéricas que podría publicar cualquier marca.

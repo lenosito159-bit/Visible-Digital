@@ -1,25 +1,19 @@
 {
-  "enabledMcpjsonServers": [
-    "mcp-media-toolkit"
-  ],
+  "enabledMcpjsonServers": ["mcp-media-toolkit"],
   "permissions": {
     "allow": [
-      "Read(./**)",
       "Edit(./data/**)",
       "Bash(python3 scripts/generate_ideas.py:*)",
       "Bash(python3 scripts/generate_images.py:*)",
       "mcp__mcp-media-toolkit__generate_image_gemini",
-      "mcp__mcp-media-toolkit__upload_image_s3",
       "mcp__mcp-media-toolkit__generate_and_upload_gemini_s3"
     ],
-    "deny": [
-      "Read(./.env)"
-    ]
+    "deny": ["Read(./.env)"]
   },
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write",
         "hooks": [
           {
             "type": "command",

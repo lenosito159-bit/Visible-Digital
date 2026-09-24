@@ -1,50 +1,48 @@
-# Especificaciones por plataforma. Pon activa: false en las que no uses.
-# aspect_ratio admite solo: 1:1, 16:9, 9:16, 4:3, 3:4 (límite de mcp-media-toolkit).
+# Especificaciones por plataforma.
+#
+# imagen.dimensiones: tamaño final recomendado para publicar.
+# imagen.aspect_ratio: el que se pide al generador. mcp-media-toolkit solo admite
+#   1:1, 16:9, 9:16, 4:3 y 3:4, así que se elige el más cercano y se recorta después
+#   si hace falta (ej.: Instagram 4:5 -> se genera 3:4).
+#
+# Para añadir una plataforma, copia un bloque y cambia el nombre de la clave.
+
+youtube:
+  formato: video_largo
+  tipo_contenido: "tutoriales, análisis y casos en profundidad"
+  longitud: "6-10 min"
+  estructura: "hook (0-15 s) -> promesa -> 3-5 bloques -> CTA de suscripción"
+  imagen:
+    uso: miniatura
+    dimensiones: "1280x720"
+    aspect_ratio: "16:9"
 
 instagram:
-  activa: true
-  formatos: [carrusel, post]
-  longitud:
-    slides: "5-10"
-    caption_palabras: "80-150"
-  aspect_ratio: "3:4"
-  imagenes: 3                   # portada + 2 de apoyo
-  notas: "La primera slide es el hook. Última slide con CTA."
-
-tiktok:
-  activa: true
-  formatos: [video_corto]
-  longitud:
-    duracion_segundos: "30-60"
-    guion_palabras: "80-150"
-  aspect_ratio: "9:16"
-  imagenes: 2                   # referencias visuales para el rodaje/edición
-  notas: "Hook en los 3 primeros segundos. Indica planos y texto en pantalla."
+  formato: carrusel
+  tipo_contenido: "listas, errores comunes, antes/después, guías rápidas"
+  longitud: "5-8 slides; caption hasta 2200 caracteres (recomendado < 150 palabras)"
+  estructura: "slide 1 = hook, slides intermedias = una idea cada una, última = CTA"
+  imagen:
+    uso: portada del carrusel
+    dimensiones: "1080x1350"
+    aspect_ratio: "3:4"
 
 linkedin:
-  activa: true
-  formatos: [post]
-  longitud:
-    palabras: "150-300"
-  aspect_ratio: "4:3"
-  imagenes: 1
-  notas: "Primera línea sin enlace. Párrafos de 1-2 frases."
+  formato: post_texto_con_imagen
+  tipo_contenido: "opinión profesional, aprendizajes, casos reales"
+  longitud: "150-300 palabras; máx. 3000 caracteres; ~210 visibles antes de 'ver más'"
+  estructura: "hook en la 1.ª línea, párrafos de 1-2 frases, pregunta o CTA al final"
+  imagen:
+    uso: imagen del post
+    dimensiones: "1200x627"
+    aspect_ratio: "16:9"
 
-x:
-  activa: false
-  formatos: [hilo]
-  longitud:
-    tuits: "4-8"
-    caracteres_por_tuit: 280
-  aspect_ratio: "16:9"
-  imagenes: 1
-  notas: "El primer tuit debe funcionar solo."
-
-blog:
-  activa: false
-  formatos: [articulo]
-  longitud:
-    palabras: "800-1500"
-  aspect_ratio: "16:9"
-  imagenes: 2                   # cabecera + una intermedia
-  notas: "H2 cada 200-300 palabras. Meta descripción de 150 caracteres."
+tiktok:
+  formato: video_corto_vertical
+  tipo_contenido: "tips rápidos, mitos, reacciones, detrás de cámaras"
+  longitud: "30-60 s"
+  estructura: "hook en 3 s, escenas cortas con texto en pantalla, CTA final"
+  imagen:
+    uso: portada / referencia visual del vídeo
+    dimensiones: "1080x1920"
+    aspect_ratio: "9:16"
