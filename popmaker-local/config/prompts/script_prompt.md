@@ -9,7 +9,8 @@ Convierte la idea en una pieza lista para publicar siguiendo la skill `voz-marca
 `config/brand_voice.yaml` (tono, palabras prohibidas, longitud) y la entrada de la
 plataforma en `config/plataformas.yaml` (formato, estructura).
 
-Reglas: una sola idea central, una sola CTA, longitud de `longitud_por_plataforma`.
+Reglas: una sola idea central, una sola CTA. Longitud: la de `estructura.<formato>` en
+`config/brand_voice.yaml` si existe (ej. `instagram_carrusel`); si no, la de `config/plataformas.yaml`.
 
 # Formato del archivo
 

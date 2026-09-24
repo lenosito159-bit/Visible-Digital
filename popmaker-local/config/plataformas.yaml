@@ -20,7 +20,7 @@ youtube:
 instagram:
   formato: carrusel
   tipo_contenido: "listas, errores comunes, antes/después, guías rápidas"
-  longitud: "5-8 slides; caption hasta 2200 caracteres (recomendado < 150 palabras)"
+  longitud: "7-9 slides (ver brand_voice.yaml); caption hasta 2200 caracteres (recomendado < 150 palabras)"
   estructura: "slide 1 = hook, slides intermedias = una idea cada una, última = CTA"
   imagen:
     uso: portada del carrusel

@@ -84,7 +84,7 @@ def prompt_base() -> str:
         SKILL_ESTILO.read_text(encoding="utf-8"),
         re.DOTALL | re.MULTILINE,
     )
-    return " ".join(m.group(1).split()) if m else ""
+    return " ".join(m.group(1).split()).strip('"\'') if m else ""
 
 
 def tiene_placeholders(texto: str) -> bool:

@@ -154,7 +154,7 @@ def construir_prompt(tema: str, plataforma: str, cantidad: int) -> str:
     valores = {
         "marca": voz.get("marca", {}).get("nombre", ""),
         "audiencia": voz.get("marca", {}).get("audiencia", ""),
-        "tono": voz.get("tono", {}).get("principal", ""),
+        "tono": voz.get("tono", {}).get("registro") or voz.get("tono", {}).get("principal", ""),
         "tema": tema,
         "plataforma": plataforma,
         "tipo_contenido": spec.get("tipo_contenido", ""),

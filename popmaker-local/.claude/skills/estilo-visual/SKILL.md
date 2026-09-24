@@ -1,55 +1,47 @@
 ---
 name: estilo-visual
-description: Estilo visual de la marca. Úsala siempre que escribas la sección "Imagen sugerida" de un guion, un prompt de imagen, llames a mcp-media-toolkit o revises si una imagen encaja con la marca. Define paleta, tipo de imagen, referencias, elementos a evitar y el prompt base de estilo.
+description: Define el estilo visual de la marca para generación de imágenes. Usar SIEMPRE que se genere cualquier imagen de contenido, referencia o carrusel.
 ---
 
-# Estilo visual
-
-<!-- Decisión de diseño: el "Prompt base" se añade automáticamente al generar
-(scripts/generate_images.py lo lee de este archivo). Los guiones solo describen la
-escena; así, si cambias el estilo, regeneras las imágenes sin reescribir guiones.
-Edita lo que esté entre [CORCHETES]. -->
+# Estilo Visual
 
 ## Paleta de colores
-
-| Rol        | Color                | Uso                                   |
-| ---------- | -------------------- | ------------------------------------- |
-| Primario   | `[COLOR_PRIMARIO]`   | Sujeto principal y acentos            |
-| Secundario | `[COLOR_SECUNDARIO]` | Detalles y apoyo                      |
-| Fondo      | `[COLOR_FONDO]`      | Fondos lisos o degradados suaves      |
-
-Escribe cada color con nombre y hex, ej.: `deep teal (#0F5257)`.
+- Primario: #1F2A44 — azul noche
+- Secundario: #F4A261 — naranja cálido
+- Acento: #2A9D8F — verde azulado
+- Fondo: #FAF7F2 — crema
+- Texto: #2C2C2C — gris carbón
 
 ## Tipo de imagen
-
-- **Tipo:** `[TIPO_DE_IMAGEN]` (ilustración flat, fotorrealismo editorial, 3D suave, collage…)
-- **Iluminación:** `[ILUMINACION]` (luz natural suave, estudio con contraluz…)
-- **Acabado:** `[ACABADO]` (limpio, grano de película sutil, mate…)
+- Estilo general: ilustración flat minimalista
+- Trazo: líneas finas uniformes, sin contornos gruesos
+- Iluminación: plana, sin degradados complejos
+- Composición: mucho espacio negativo, un objeto central por slide
 
 ## Referencias de estilo
+- Estética similar a: Notion, Linear, Substack, Gumroad
+- Tono visual: limpio, humano, sin pretensiones corporativas
 
-- Estética: `[REFERENCIA_DE_ESTILO]` (minimalismo escandinavo, Bauhaus, Y2K…)
-- Artistas / marcas con un look parecido: `[REFERENCIA_ARTISTA_O_MARCA]`
-- Imágenes propias: `data/referencias/`
+## Elementos a EVITAR
+- 3D realista, texturas metálicas
+- Sombras duras o degradados complejos
+- Stock photos genéricas
+- Texto dentro de la imagen generada (el texto va superpuesto después)
+- Personas con caras detalladas (usar siluetas o figuras estilizadas)
 
-En el prompt, traduce las referencias a rasgos concretos (paleta, trazo, composición)
-en vez de nombrar a artistas vivos.
+## Formato Instagram carrusel
+- Dimensiones: 1080x1350 (aspect ratio 3:4)
+- Margen seguro: 80px en los bordes
+- Reservar tercio inferior para texto superpuesto
+- Una sola idea visual por slide
 
-## Elementos a evitar
-
-- Texto dentro de la imagen (los modelos lo deforman): el texto va en el copy.
-- Logos de terceros y personas reales reconocibles.
-- `[ELEMENTO_A_EVITAR]`
-
-## Cómo escribir la "Imagen sugerida"
-
-Ver `config/prompts/image_prompt.md`: en inglés, sujeto + escena + composición + emoción,
-sin colores ni estilo (los pone el prompt base).
-
-## Prompt base
-
-Edita solo el texto entre los dos comentarios `prompt-base`; no borres los comentarios.
-
+## Prompt base (se añade SIEMPRE al final)
+<!-- scripts/generate_images.py lee el texto entre estos dos comentarios y lo añade a
+la "Imagen sugerida" de cada guion. Edita el texto, pero no borres los comentarios. -->
 <!-- prompt-base:inicio -->
-Style: [TIPO_DE_IMAGEN], [REFERENCIA_DE_ESTILO]. Color palette: primary [COLOR_PRIMARIO], secondary [COLOR_SECUNDARIO], background [COLOR_FONDO]. Lighting: [ILUMINACION]. Finish: [ACABADO]. Clean composition with generous negative space. No text, no letters, no logos, no watermarks.
+"minimalist flat illustration, Notion and Linear inspired aesthetic, 
+color palette: deep night blue #1F2A44, warm orange #F4A261, teal #2A9D8F, 
+cream background #FAF7F2, thin uniform lines, flat lighting, 
+generous negative space, single central object, no text, no watermarks, 
+no detailed human faces, high quality, 3:4 aspect ratio"
 <!-- prompt-base:fin -->

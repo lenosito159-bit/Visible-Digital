@@ -1,52 +1,44 @@
-# Voz de marca en formato programático.
-#
-# Decisión de diseño: este YAML guarda los DATOS (tono, listas, longitudes) que leen
-# los scripts sin Claude; la skill .claude/skills/voz-marca/SKILL.md guarda el CRITERIO
-# (ejemplos, matices) que usa Claude. Si chocan, manda este archivo.
-#
-# Edita todo lo que esté entre corchetes [ASÍ].
-
 marca:
-  nombre: "[NOMBRE_MARCA]"
-  propuesta_de_valor: "[PROPUESTA_DE_VALOR]"      # qué haces y para qué sirve, en una frase
-  audiencia: "[AUDIENCIA_OBJETIVO]"               # ej.: freelancers creativos de 25-40 años
-  objetivo: "[OBJETIVO_PRINCIPAL]"                # ej.: conseguir suscriptores a la newsletter
-  idioma: es-ES
+  nombre: "Productividad Freelance"
+  audiencia: "freelancers hispanohablantes, 25-40 años, diseñadores/desarrolladores/creativos"
+  nicho: "productividad, gestión del tiempo, negocio digital"
 
 tono:
-  principal: "[TONO]"            # cercano | profesional | técnico | irreverente | inspirador
-  persona: "[TUTEO_O_USTED]"     # tú | usted
-  nivel_tecnico: "[NIVEL_TECNICO]"  # divulgativo | intermedio | experto
-  rasgos:                        # "somos X, pero no Y"
-    - "[RASGO_1], pero no [EXCESO_1]"
-    - "[RASGO_2], pero no [EXCESO_2]"
-  max_emojis: 2
+  registro: "cercano pero directo, sin rodeos, con base práctica"
+  persona: "segunda persona (tú)"
+  humor: "sí, seco y ocasional"
+  emojis: "máximo 1 por slide, solo si aporta"
 
 estructura:
-  # Todo contenido sigue hook -> desarrollo -> CTA (ver skill voz-marca).
-  hook_max_palabras: 15
-  cta:                           # una sola CTA por pieza; se rota entre estas
-    - "[CTA_1]"
-    - "[CTA_2]"
+  instagram_carrusel:
+    slides: "7-9"
+    slide_1: "Hook: una verdad incómoda o promesa concreta"
+    slides_2_a_n: "Un punto por slide, con ejemplo real o dato específico"
+    slide_final: "CTA claro (guardar, compartir, seguir)"
+    longitud_por_slide: "máximo 15 palabras"
 
-palabras_prohibidas:
-  - "en el mundo actual"
-  - "hoy en día"
-  - "en la era digital"
-  - "sinergia"
-  - "disruptivo"
-  - "revolucionario"
-  - "game changer"
-  - "[PALABRA_PROHIBIDA_1]"
+prohibidas:
+  - "En el mundo actual"
+  - "Es importante destacar que"
+  - "Sin duda alguna"
+  - "Como todos sabemos"
+  - "En resumidas cuentas"
+  - "No obstante"
+  - "Cabe mencionar"
+  - "Potencia tu productividad"  # genérico
 
-# Longitud del TEXTO que escribimos, en palabras. Los límites técnicos de cada
-# plataforma (duración, caracteres) están en plataformas.yaml.
-longitud_por_plataforma:
-  youtube: "900-1500 palabras de guion (≈ 6-10 min)"
-  instagram: "caption de 80-150 palabras + 5-8 slides de 15-30 palabras"
-  linkedin: "150-300 palabras"
-  tiktok: "80-150 palabras de guion (≈ 30-60 s)"
+sello:
+  - "Vamos al grano"
+  - "Esto es lo que nadie te dice"
+  - "Probado en carne propia"
+  - "Número concreto, no teoría"
 
-hashtags:
-  marca: ["[#HASHTAG_MARCA]"]
-  maximo: 5
+ejemplos:
+  - |
+    "Llevo 4 años freelance. Los primeros 2 trabajaba 12 horas al día
+    y facturaba menos que ahora trabajando 6. La diferencia no fue
+    disciplina. Fue dejar de confundir estar ocupado con ser productivo."
+  - |
+    "Si tu día empieza revisando el móvil, ya perdiste.
+    No por la dopamina. Porque le entregaste las llaves de tu atención
+    a alguien que no paga tu factura."
