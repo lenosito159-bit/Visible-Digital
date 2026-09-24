@@ -18,9 +18,12 @@ El mismo script puede generar ideas sin Claude: `generate_ideas.py generar`. -->
 ## Proceso
 
 1. **Contexto**: ejecuta
-   `python3 scripts/generate_ideas.py contexto --tema "<tema>"`.
-   Lista las ideas existentes (las más parecidas al tema primero) y los archivos de
+   `python3 scripts/generate_ideas.py contexto --tema "<tema>" --cantidad <N>`.
+   Lista las ideas existentes (las más parecidas al tema primero), **lo que mejor ha
+   funcionado** según `data/metricas.csv`, el tipo de CTA de cada pieza y los archivos de
    `data/referencias/`. Lee las referencias que parezcan relevantes.
+   Si hay métricas, al menos la mitad de las ideas deben partir de un ángulo o tipo de
+   hook de las piezas mejor puntuadas (sin repetirlas).
 
 2. **Análisis del tema**: identifica el problema o deseo de la audiencia (skill
    `voz-marca`), 3-5 subtemas y qué ángulos ya están cubiertos en el banco.

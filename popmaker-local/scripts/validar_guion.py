@@ -5,9 +5,12 @@
 
 Reglas:
   - Ninguna expresión de `prohibidas`.
-  - Si existe estructura.<plataforma>_<formato> (ej. instagram_carrusel):
-      número de "### Slide N" dentro del rango de `slides` ("7-9") y
-      palabras por slide <= el número de `longitud_por_slide` ("máximo 15 palabras").
+  - Reglas de estructura.<plataforma>_<formato> (ej. instagram_carrusel) o, si no
+    existe, de estructura.<plataforma> (ej. linkedin):
+      slides / escenas     número de "### Slide N" / "### Escena N" en rango ("7-9")
+      longitud_por_slide   palabras máximas por slide ("máximo 15 palabras")
+      palabras             palabras de "## Desarrollo" en rango ("150-300")
+  - Si el frontmatter dice `cta: oferta`, el enlace de la oferta debe aparecer.
   - Sección "## Imagen sugerida" presente (solo aviso: falta a propósito en --solo-texto).
 
 Decisión de diseño: Claude aplica la voz, pero contar palabras no se le da bien de forma
@@ -32,6 +35,17 @@ def contar_palabras(texto: str) -> int:
     return len([p for p in EMOJI.sub("", texto).split() if re.search(r"\w", p)])
 
 
+def leer_rango(valor) -> tuple[int, int] | None:
+    """'7-9' -> (7, 9). None si no hay rango."""
+    m = re.match(r"\s*(\d+)\s*-\s*(\d+)", str(valor or ""))
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def bloques(texto: str, tipo: str) -> list[str]:
+    """Contenido de cada '### Slide N' o '### Escena N'."""
+    return re.findall(rf"^###\s+{tipo}\s+\d+[^\n]*\n(.*?)(?=^#{{2,3}}\s|\Z)", texto, re.MULTILINE | re.DOTALL)
+
+
 def validar(ruta: Path) -> tuple[list[str], list[str]]:
     texto = ruta.read_text(encoding="utf-8")
     voz = comun.cargar_yaml("brand_voice.yaml")
@@ -45,20 +59,34 @@ def validar(ruta: Path) -> tuple[list[str], list[str]]:
     meta = dict(re.findall(r"^(\w+):\s*(.+)$", texto.split("\n---", 1)[0], re.MULTILINE))
     plataforma = meta.get("plataforma", "")
     formato = comun.plataformas().get(plataforma, {}).get("formato", "")
-    reglas = (voz.get("estructura") or {}).get(f"{plataforma}_{formato}") or {}
+    estructura = voz.get("estructura") or {}
+    reglas = estructura.get(f"{plataforma}_{formato}") or estructura.get(plataforma) or {}
 
     if reglas:
-        slides = re.findall(r"^###\s+Slide\s+\d+\s*\n(.*?)(?=^#{2,3}\s|\Z)", texto, re.MULTILINE | re.DOTALL)
-        if m := re.match(r"\s*(\d+)\s*-\s*(\d+)", str(reglas.get("slides", ""))):
-            minimo, maximo = int(m.group(1)), int(m.group(2))
-            if not minimo <= len(slides) <= maximo:
-                errores.append(f"{len(slides)} slides; deben ser {minimo}-{maximo}")
+        slides = bloques(texto, "Slide")
+        for nombre, encontrados in (("slides", slides), ("escenas", bloques(texto, "Escena"))):
+            if rango := leer_rango(reglas.get(nombre)):
+                if not rango[0] <= len(encontrados) <= rango[1]:
+                    errores.append(f"{len(encontrados)} {nombre}; deben ser {rango[0]}-{rango[1]}")
+        if rango := leer_rango(reglas.get("palabras")):
+            desarrollo = re.search(r"^##\s+Desarrollo\s*$(.*?)(?=^##\s|\Z)", texto, re.MULTILINE | re.DOTALL)
+            n = contar_palabras(re.sub(r"^###.*$", "", desarrollo.group(1), flags=re.MULTILINE)) if desarrollo else 0
+            if not rango[0] <= n <= rango[1]:
+                errores.append(f"Desarrollo: {n} palabras; deben ser {rango[0]}-{rango[1]}")
         if m := re.search(r"(\d+)", str(reglas.get("longitud_por_slide", ""))):
             limite = int(m.group(1))
             for i, slide in enumerate(slides, 1):
                 n = contar_palabras(slide)
                 if n > limite:
                     errores.append(f"Slide {i}: {n} palabras (máximo {limite})")
+
+    oferta = voz.get("oferta") or {}
+    if meta.get("cta") == "oferta":
+        enlace = str(oferta.get("enlace") or "").strip()
+        if not oferta.get("activa") or not enlace:
+            errores.append("cta: oferta, pero la oferta no está activa o no tiene enlace en brand_voice.yaml")
+        elif enlace.lower() not in minusculas:
+            errores.append(f'CTA de oferta sin el enlace "{enlace}"')
 
     if not re.search(r"^##\s+Imagen sugerida", texto, re.MULTILINE):
         avisos.append("No hay sección '## Imagen sugerida' (correcto solo en modo --solo-texto)")

@@ -99,6 +99,9 @@ claude mcp list
 | Solo imagen de un guion | `python3 scripts/generate_images.py data/output/guiones/<guion>.md` |
 | Imágenes de todos los guiones pendientes | `python3 scripts/generate_images.py --pendientes` |
 | Solo ideas, sin Claude | `python3 scripts/generate_ideas.py generar --tema "…" --plataforma tiktok --cantidad 5` |
+| Registrar resultados de una pieza publicada | `python3 scripts/metricas.py registrar data/output/guiones/<guion>.md --guardados 140 --ventas 2 --ingresos 38` |
+| Ver qué ha funcionado mejor | `python3 scripts/metricas.py ranking` |
+| Comprobar que todo funciona (sin gastar) | `python3 -m unittest discover -s tests -v` |
 | Revisar el estilo de un guion | `python3 scripts/validar_guion.py data/output/guiones/<guion>.md` |
 | Ver qué haría (dry run) | añade `--dry-run` a cualquiera de los anteriores |
 | Desatendido (cron/launchd) | `scripts/run_workflow.sh --tema "…"` (ver sección 7) |
@@ -106,6 +109,25 @@ claude mcp list
 Opciones de imagen (argumentos o variables en `.env`):
 `--calidad fast|balanced|quality` (`POPMAKER_CALIDAD`), `--via auto|mcp|api` (`POPMAKER_VIA`),
 `--forzar` para regenerar (o borra el `.txt`). `POPMAKER_IMAGENES=off` desactiva el hook.
+
+## 5b. Ciclo para generar ingresos
+
+Ningún sistema garantiza ventas, pero este cierra el ciclo que más influye en ellas:
+publicar con constancia, medir y repetir lo que funciona, y llevar a la audiencia a lo que vendes.
+
+1. **Define tu oferta** en `config/brand_voice.yaml` → `oferta` (`activa: true`, nombre, enlace y
+   `frecuencia`). Con `frecuencia: 3`, 1 de cada 3 piezas cierra con una CTA a tu oferta y
+   el resto construye audiencia. El validador comprueba que esas piezas llevan el enlace.
+2. **Genera y publica** con `/generar-contenido`.
+3. **Registra resultados** 3-7 días después de publicar:
+   `python3 scripts/metricas.py registrar <guion> --alcance … --guardados … --seguidores … --clics … --ventas … --ingresos …`
+   La idea pasa a "publicado" en el banco.
+4. **Repite lo que funciona**: la puntuación premia ventas, clics y seguidores por encima del
+   alcance (pesos en `PESOS` de `scripts/metricas.py`). Las siguientes ideas parten de los
+   ángulos mejor puntuados.
+
+Estados de cada idea en el banco: `pendiente` → `guion` (lo marca el hook) → `publicado`
+(al registrar métricas).
 
 ## 6. Ajustes manuales que debes hacer
 
@@ -116,13 +138,13 @@ Opciones de imagen (argumentos o variables en `.env`):
 3. **Cargar `.env` antes de `claude`** (`set -a; source .env; set +a`). Claude Code no lee `.env`:
    el MCP recibe las claves del entorno de tu terminal. Sin `GEMINI_API_KEY` el servidor
    no arranca ("Failed to connect"). `run_workflow.sh` ya lo hace solo.
-4. **Placeholders** (`[ASÍ]`):
-   - `.claude/skills/estilo-visual/SKILL.md`: paleta, tipo de imagen, referencias y **prompt base**.
-   - `.claude/skills/voz-marca/SKILL.md`: tono y ejemplos reales "así sí / así no".
-   - `config/brand_voice.yaml`: marca, audiencia, tono, CTA, palabras prohibidas, hashtags.
-   - `config/plataformas.yaml`: revisa longitudes y dimensiones; borra las plataformas que no uses.
-5. **Material de referencia**: deja en `data/referencias/` posts, textos o imágenes que te gusten.
-6. **cron/launchd**: usa rutas absolutas y comprueba que `claude`, `npx` y `python3` están en el
+4. **Voz y estilo** (ya rellenados con "Productividad Freelance"; ajústalos cuando quieras):
+   - `.claude/skills/estilo-visual/SKILL.md`: paleta, tipo de imagen y **prompt base** (sin formato: lo pone el script).
+   - `config/brand_voice.yaml`: tono, prohibidas, sello, ejemplos y reglas por plataforma.
+   - `config/plataformas.yaml`: longitudes y dimensiones; borra las plataformas que no uses.
+5. **Oferta** (para monetizar): rellena `oferta` en `config/brand_voice.yaml` y pon `activa: true`.
+6. **Material de referencia**: deja en `data/referencias/` posts, textos o imágenes que te gusten.
+7. **cron/launchd**: usa rutas absolutas y comprueba que `claude`, `npx` y `python3` están en el
    PATH que añade `run_workflow.sh` (edita la línea `export PATH=` si los tienes en otro sitio).
 
 ## 7. Ejecución desatendida
@@ -190,5 +212,7 @@ herramienta en `.claude/settings.json` y `scripts/generate_images.py`:
 | `scripts/comun.py` | Rutas, `.env`, YAML, llamada a Gemini y prompt base (compartido) |
 | `scripts/generate_ideas.py` | Ideas sin Claude (Gemini), banco de ideas y duplicados |
 | `scripts/generate_images.py` | Imagen de un guion: cliente MCP por stdio, o API de Gemini si falla |
+| `scripts/metricas.py` | Resultados de cada pieza (`data/metricas.csv`) y ranking por puntuación orientada a ingresos |
+| `tests/` | 20 tests automáticos con Gemini simulado: no gastan créditos |
 | `scripts/validar_guion.py` | Comprueba un guion contra las reglas medibles de `brand_voice.yaml` (slides, palabras por slide, prohibidas) |
 | `scripts/run_workflow.sh` | Encadenador para cron/launchd, con registro en `data/logs/` |

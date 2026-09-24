@@ -16,6 +16,16 @@ estructura:
     slides_2_a_n: "Un punto por slide, con ejemplo real o dato específico"
     slide_final: "CTA claro (guardar, compartir, seguir)"
     longitud_por_slide: "máximo 15 palabras"
+  # Reglas para el resto de plataformas (las comprueba scripts/validar_guion.py).
+  # "palabras" cuenta las de la sección "## Desarrollo".
+  linkedin:
+    palabras: "150-300"
+  tiktok:
+    escenas: "4-8"
+    palabras: "80-150"
+  youtube:
+    escenas: "5-12"
+    palabras: "900-1500"
 
 prohibidas:
   - "En el mundo actual"
@@ -42,3 +52,13 @@ ejemplos:
     "Si tu día empieza revisando el móvil, ya perdiste.
     No por la dopamina. Porque le entregaste las llaves de tu atención
     a alguien que no paga tu factura."
+
+# Monetización. Con activa: true, 1 de cada `frecuencia` piezas cierra con una CTA
+# hacia tu oferta; el resto, con CTA de audiencia (guardar, compartir, seguir).
+# `generate_ideas.py contexto` dice a Claude qué tipo de CTA toca en cada pieza.
+oferta:
+  activa: false
+  nombre: ""        # ej.: "Plantilla de planificación semanal en Notion"
+  enlace: ""        # ej.: "enlace en la bio" o https://tutienda.com/plantilla
+  precio: ""        # opcional, ej.: "19 €"
+  frecuencia: 3     # 1 de cada 3 piezas

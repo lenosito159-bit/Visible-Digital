@@ -75,7 +75,8 @@ def leer_guion(ruta: Path) -> dict:
     return {
         "guion": ruta,
         "descripcion": descripcion,
-        "prompt": f"{descripcion} {base}".strip(),
+        # El formato va al final del prompt y además como parámetro de la API.
+        "prompt": f"{descripcion} {base}, {imagen.get('aspect_ratio', '1:1')} aspect ratio".strip(),
         "aspect_ratio": imagen.get("aspect_ratio", "1:1"),
         "dimensiones": imagen.get("dimensiones", "?"),
         "imagen": comun.DIR_IMAGENES / f"{ruta.stem}.png",
@@ -185,6 +186,11 @@ def generar_via_api(info: dict, calidad: str) -> tuple[str, str]:
     for parte in datos.get("candidates", [{}])[0].get("content", {}).get("parts", []):
         inline = parte.get("inlineData") or parte.get("inline_data")
         if inline and inline.get("data"):
+            mime = inline.get("mimeType") or inline.get("mime_type") or "image/png"
+            if mime == "image/jpeg":
+                info["imagen"] = info["imagen"].with_suffix(".jpg")
+            elif mime == "image/webp":
+                info["imagen"] = info["imagen"].with_suffix(".webp")
             info["imagen"].parent.mkdir(parents=True, exist_ok=True)
             info["imagen"].write_bytes(base64.b64decode(inline["data"]))
             return info["imagen"].resolve().as_uri(), f"api:{modelo}"

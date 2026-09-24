@@ -1,7 +1,7 @@
 ---
 description: Pipeline de contenido - ideas, guiones e imágenes a partir de un tema
 argument-hint: --tema "<tema>" [--plataforma linkedin] [--cantidad 1] [--solo-texto] [--dry-run]
-allowed-tools: Read, Write, Edit, Glob, Grep, Skill, Bash(python3 scripts/generate_ideas.py:*), Bash(python3 scripts/generate_images.py:*), Bash(python3 scripts/validar_guion.py:*), mcp__mcp-media-toolkit__generate_image_gemini, mcp__mcp-media-toolkit__generate_and_upload_gemini_s3
+allowed-tools: Read, Write, Edit, Glob, Grep, Skill, Bash(python3 scripts/generate_ideas.py:*), Bash(python3 scripts/generate_images.py:*), Bash(python3 scripts/validar_guion.py:*), Bash(python3 scripts/metricas.py:*), mcp__mcp-media-toolkit__generate_image_gemini, mcp__mcp-media-toolkit__generate_and_upload_gemini_s3
 ---
 
 <!--
@@ -34,7 +34,8 @@ Carga las skills **voz-marca** y **estilo-visual** (herramienta Skill) y lee
 
 **Si `--dry-run`**, muestra y termina:
 - los parámetros interpretados;
-- la salida de `python3 scripts/generate_ideas.py contexto --tema "<tema>"`;
+- la salida de `python3 scripts/generate_ideas.py contexto --tema "<tema>" --cantidad <n>`
+  (banco, métricas, plan de CTA y referencias);
 - las rutas que se crearían: `data/ideas/<hoy>_ideas.md`,
   `data/output/guiones/<hoy>_<plataforma>_<slug>.md` (+ `.txt`) y
   `data/output/imagenes/<hoy>_<plataforma>_<slug>.png`;
@@ -44,7 +45,8 @@ Carga las skills **voz-marca** y **estilo-visual** (herramienta Skill) y lee
 ## 2. Ideas
 
 Usa la skill **generador-ideas** para generar `--cantidad` ideas del tema para esa
-plataforma y guardarlas en `data/ideas/`.
+plataforma y guardarlas en `data/ideas/`. Pasa `--cantidad <n>` a `contexto`: su sección
+"CTA de las próximas piezas" dice qué pieza lleva CTA de oferta.
 
 ## 3. Guion por idea
 

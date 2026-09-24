@@ -4,7 +4,8 @@
 # Cuando Claude escribe o edita un guion en data/output/guiones/*.md:
 #   1. Valida el guion contra las reglas medibles de brand_voice.yaml
 #      (scripts/validar_guion.py): slides, palabras por slide, expresiones prohibidas.
-#   2. Si tiene "## Imagen sugerida" y aún no tiene .txt, genera la imagen llamando al
+#   2. Marca su idea como "guion" en el banco (si seguía "pendiente").
+#   3. Si tiene "## Imagen sugerida" y aún no tiene .txt, genera la imagen llamando al
 #      MCP (mcp-media-toolkit) y guarda la URL en un .txt junto al guion
 #      (scripts/generate_images.py).
 #
@@ -40,7 +41,11 @@ CODIGO=$?
 [ $CODIGO -ne 0 ] && SALIDA="$SALIDA
    Corrige estos problemas con Edit antes del resumen."
 
-# 2. Imagen: solo si hay sección, no existe ya el .txt y no está desactivada.
+# 2. Estado de la idea en el banco (silencioso).
+IDEA_ID="$(sed -n 's/^idea_id:[[:space:]]*//p' "$ARCHIVO" | head -1 | tr -d '[:space:]')"
+[ -n "$IDEA_ID" ] && python3 scripts/generate_ideas.py estado --id "$IDEA_ID" --valor guion --solo-si pendiente >/dev/null 2>&1
+
+# 3. Imagen: solo si hay sección, no existe ya el .txt y no está desactivada.
 if [ "${POPMAKER_IMAGENES:-on}" != "off" ] \
    && grep -qE '^##[[:space:]]+Imagen sugerida' "$ARCHIVO" \
    && [ ! -f "${ARCHIVO%.md}.txt" ]; then

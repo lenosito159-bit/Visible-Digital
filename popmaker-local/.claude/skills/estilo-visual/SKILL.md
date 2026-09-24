@@ -37,11 +37,13 @@ description: Define el estilo visual de la marca para generación de imágenes. 
 
 ## Prompt base (se añade SIEMPRE al final)
 <!-- scripts/generate_images.py lee el texto entre estos dos comentarios y lo añade a
-la "Imagen sugerida" de cada guion. Edita el texto, pero no borres los comentarios. -->
+la "Imagen sugerida" de cada guion. Edita el texto, pero no borres los comentarios.
+No pongas aquí el formato (3:4, 16:9...): el script añade el de cada plataforma
+según config/plataformas.yaml. -->
 <!-- prompt-base:inicio -->
 "minimalist flat illustration, Notion and Linear inspired aesthetic, 
 color palette: deep night blue #1F2A44, warm orange #F4A261, teal #2A9D8F, 
 cream background #FAF7F2, thin uniform lines, flat lighting, 
 generous negative space, single central object, no text, no watermarks, 
-no detailed human faces, high quality, 3:4 aspect ratio"
+no detailed human faces, high quality"
 <!-- prompt-base:fin -->

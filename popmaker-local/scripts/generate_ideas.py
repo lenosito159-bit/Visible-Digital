@@ -5,6 +5,7 @@
   contexto  Muestra el banco y las referencias (lo usa la skill generador-ideas).
   guardar   Guarda ideas escritas por Claude, descartando duplicados.
   listar    Lista las ideas guardadas.
+  estado    Cambia el estado de una idea (pendiente -> guion -> publicado).
 
 Ejemplos:
   python3 scripts/generate_ideas.py generar --tema "precios freelance" --plataforma linkedin --cantidad 3
@@ -31,6 +32,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import comun  # noqa: E402
+import metricas  # noqa: E402
 
 UMBRAL_DUPLICADO = 0.72
 PALABRAS_VACIAS = set("a al con de del el en es la las lo los para por que se sin su tu un una y o como mas no te tus mi sus".split())
@@ -134,6 +136,36 @@ def guardar(tema: str, nuevas: list[Idea], forzar: bool = False) -> tuple[list[I
     return aceptadas, avisos
 
 
+def cambiar_estado(id_idea: str, estado: str, solo_si: str | None = None) -> bool:
+    """Actualiza la línea '- **Estado:**' de la idea con ese ID. True si la cambia.
+    Con solo_si, solo cambia si el estado actual es ese (no rebaja 'publicado' a 'guion')."""
+    for ruta in sorted(comun.DIR_IDEAS.glob("*_ideas.md")):
+        texto = ruta.read_text(encoding="utf-8")
+        m = re.search(rf"<!--\s*id:\s*{re.escape(id_idea)}\s*-->.*?(?=^#{{2,3}}\s|\Z)", texto, re.MULTILINE | re.DOTALL)
+        if not m:
+            continue
+        bloque = m.group(0)
+        actual = re.search(r"^- \*\*Estado:\*\*\s*(.*)$", bloque, re.MULTILINE)
+        if solo_si and (actual.group(1).strip() if actual else "pendiente") != solo_si:
+            return False
+        if re.search(r"^- \*\*Estado:\*\*.*$", bloque, re.MULTILINE):
+            nuevo = re.sub(r"^- \*\*Estado:\*\*.*$", f"- **Estado:** {estado}", bloque, count=1, flags=re.MULTILINE)
+        else:
+            nuevo = bloque.rstrip("\n") + f"\n- **Estado:** {estado}\n"
+        ruta.write_text(texto[: m.start()] + nuevo + texto[m.end():], encoding="utf-8")
+        return True
+    return False
+
+
+def plan_cta(n: int) -> list[str]:
+    """Tipo de CTA de las próximas n piezas según oferta.frecuencia de brand_voice.yaml."""
+    oferta = comun.cargar_yaml("brand_voice.yaml").get("oferta") or {}
+    hechas = len(list(comun.DIR_GUIONES.glob("*.md")))
+    activa = oferta.get("activa") and oferta.get("nombre") and oferta.get("enlace")
+    frecuencia = max(int(oferta.get("frecuencia") or 3), 1)
+    return ["oferta" if activa and (hechas + i) % frecuencia == 0 else "audiencia" for i in range(1, n + 1)]
+
+
 def informar(guardadas: list[Idea], avisos: list[str]) -> None:
     ruta = comun.DIR_IDEAS / f"{dt.date.today().isoformat()}_ideas.md"
     print(f"Guardadas {len(guardadas)} idea(s) en {ruta.relative_to(comun.RAIZ)}")
@@ -197,6 +229,25 @@ def cmd_contexto(args: argparse.Namespace) -> int:
         print(f"- [{idea.id}] {idea.titulo} — {idea.angulo or 'sin ángulo'}")
     if not ideas:
         print("- (banco vacío)")
+    print("\n## Lo que mejor ha funcionado (data/metricas.csv)\n")
+    top = metricas.mejores(5)
+    for fila in top:
+        print(f"- {fila['titulo']} ({fila['plataforma']}, puntuación {fila['puntuacion']}, "
+              f"guardados {fila['guardados'] or 0}, ventas {fila['ventas'] or 0})")
+    if top:
+        print("Propón ángulos y hooks parecidos a estos (sin repetirlos).")
+    else:
+        print("- (sin métricas todavía)")
+
+    oferta = comun.cargar_yaml("brand_voice.yaml").get("oferta") or {}
+    print("\n## CTA de las próximas piezas\n")
+    for i, tipo in enumerate(plan_cta(args.cantidad), 1):
+        if tipo == "oferta":
+            print(f"- Pieza {i}: OFERTA -> \"{oferta.get('nombre')}\" ({oferta.get('enlace')}). "
+                  "Pon `cta: oferta` en el frontmatter e incluye el enlace.")
+        else:
+            print(f"- Pieza {i}: audiencia (guardar, compartir o seguir). `cta: audiencia`.")
+
     print("\n## Referencias (data/referencias/)\n")
     refs = [p for p in sorted(comun.DIR_REFERENCIAS.rglob("*")) if p.is_file() and not p.name.startswith(".")]
     for ruta in refs:
@@ -235,8 +286,9 @@ def main() -> int:
     p.add_argument("--dry-run", action="store_true", help="Muestra el prompt sin llamar a la API")
     p.set_defaults(func=cmd_generar)
 
-    p = sub.add_parser("contexto", help="Banco de ideas y referencias para un tema")
+    p = sub.add_parser("contexto", help="Banco de ideas, métricas, CTA y referencias para un tema")
     p.add_argument("--tema", required=True)
+    p.add_argument("--cantidad", type=int, default=1, help="Piezas que se van a crear (para el plan de CTA)")
     p.set_defaults(func=cmd_contexto)
 
     p = sub.add_parser("guardar", help="Guarda ideas en Markdown (archivo o stdin)")
@@ -247,6 +299,12 @@ def main() -> int:
 
     p = sub.add_parser("listar", help="Lista el banco de ideas")
     p.set_defaults(func=cmd_listar)
+
+    p = sub.add_parser("estado", help="Cambia el estado de una idea")
+    p.add_argument("--id", required=True)
+    p.add_argument("--valor", required=True, help="ej.: guion, publicado, descartada")
+    p.add_argument("--solo-si", help="Cambiar solo si el estado actual es este")
+    p.set_defaults(func=lambda a: 0 if cambiar_estado(a.id, a.valor, a.solo_si) else 1)
 
     args = parser.parse_args()
     return args.func(args)
