@@ -1,0 +1,35 @@
+name: API tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Todos los días a las 07:00 UTC, para detectar si una API deja de funcionar.
+    - cron: '0 7 * * *'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run test:report
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          API_HEALTH_PATH: ${{ vars.API_HEALTH_PATH }}
+
+      - name: Guardar informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-tests
+          path: reports/
