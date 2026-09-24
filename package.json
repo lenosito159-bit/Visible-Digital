@@ -1,7 +1,7 @@
 {
   "name": "api-testing",
   "version": "1.0.0",
-  "description": "Proyecto para testear APIs con Vitest",
+  "description": "Proyecto para testear APIs con Vitest y catálogo de APIs públicas",
   "private": true,
   "type": "module",
   "engines": {
@@ -10,7 +10,9 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:report": "vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml"
+    "test:report": "vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml",
+    "buscar": "node scripts/buscar-api.js",
+    "catalogo:actualizar": "node scripts/actualizar-catalogo.js"
   },
   "devDependencies": {
     "vitest": "^5.0.1",

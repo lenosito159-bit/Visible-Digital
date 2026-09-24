@@ -58,13 +58,40 @@ await api.delete('/usuarios/1');
 Las respuestas 4xx y 5xx no lanzan error, así que también puedes comprobar
 que la API rechaza lo que debe rechazar.
 
+## Catálogo de APIs públicas
+
+`catalogo/apis.json` contiene unas 1900 APIs gratuitas en 51 categorías, sacadas de
+[public-apis/public-apis](https://github.com/public-apis/public-apis) (licencia MIT).
+Sirve para encontrar APIs con las que montar proyectos o practicar tests.
+
+```bash
+npm run buscar -- weather --sin-auth --https   # APIs del tiempo sin clave y con HTTPS
+npm run buscar -- --categoria games --cors     # juegos que se pueden llamar desde el navegador
+npm run buscar -- --categorias                 # lista de categorías
+npm run buscar -- --ayuda                      # todas las opciones
+```
+
+Las descripciones están en inglés, así que busca con palabras en inglés.
+
+También puedes usarlo desde código:
+
+```js
+import { buscarApis, cargarCatalogo } from '../src/catalogo.js';
+
+const apis = buscarApis(cargarCatalogo(), { categoria: 'weather', sinAuth: true });
+```
+
+Para traer la última versión del catálogo: `npm run catalogo:actualizar`.
+
 ## Comandos
 
-| Comando               | Qué hace                                              |
-| --------------------- | ----------------------------------------------------- |
-| `npm test`            | Ejecuta todos los tests una vez                       |
-| `npm run test:watch`  | Vuelve a ejecutar los tests al guardar cambios        |
-| `npm run test:report` | Ejecuta los tests y genera `reports/junit.xml`        |
+| Comando                       | Qué hace                                              |
+| ----------------------------- | ----------------------------------------------------- |
+| `npm test`                    | Ejecuta todos los tests una vez                       |
+| `npm run test:watch`          | Vuelve a ejecutar los tests al guardar cambios        |
+| `npm run test:report`         | Ejecuta los tests y genera `reports/junit.xml`        |
+| `npm run buscar -- <texto>`   | Busca APIs en el catálogo                             |
+| `npm run catalogo:actualizar` | Descarga la última versión del catálogo               |
 
 ## Integración continua (GitHub Actions)
 
