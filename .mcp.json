@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "mcp-media-toolkit": {
+      "command": "npx",
+      "args": ["-y", "mcp-media-toolkit"],
+      "env": {
+        "GEMINI_API_KEY": "${GEMINI_API_KEY}",
+        "S3_ENDPOINT": "${S3_ENDPOINT}",
+        "S3_ACCESS_KEY_ID": "${S3_ACCESS_KEY_ID}",
+        "S3_SECRET_ACCESS_KEY": "${S3_SECRET_ACCESS_KEY}",
+        "S3_BUCKET": "${S3_BUCKET:-media}",
+        "S3_PUBLIC_URL": "${S3_PUBLIC_URL}"
+      }
+    }
+  }
+}

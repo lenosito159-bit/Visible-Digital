@@ -83,6 +83,25 @@ const apis = buscarApis(cargarCatalogo(), { categoria: 'weather', sinAuth: true 
 
 Para traer la última versión del catálogo: `npm run catalogo:actualizar`.
 
+## Servidor MCP de medios
+
+`.mcp.json` configura [mcp-media-toolkit](https://www.npmjs.com/package/mcp-media-toolkit)
+para Claude Code: genera medios con Gemini y los sube a un bucket compatible con S3
+(por ejemplo Cloudflare R2). Las claves no están en el archivo: Claude Code las lee de
+las variables de entorno de tu terminal al arrancar, así que expórtalas antes de abrirlo:
+
+```bash
+export GEMINI_API_KEY=tu-gemini-key
+export S3_ENDPOINT=https://tu-account.r2.cloudflarestorage.com
+export S3_ACCESS_KEY_ID=tu-access-key
+export S3_SECRET_ACCESS_KEY=tu-secret-key
+export S3_BUCKET=media                         # opcional, por defecto "media"
+export S3_PUBLIC_URL=https://media.tudominio.com
+```
+
+La primera vez que abras Claude Code en el proyecto te pedirá aprobar el servidor.
+Comprueba que está conectado con `/mcp`.
+
 ## Comandos
 
 | Comando                       | Qué hace                                              |
