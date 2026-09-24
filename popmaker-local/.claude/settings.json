@@ -5,6 +5,7 @@
       "Edit(./data/**)",
       "Bash(python3 scripts/generate_ideas.py:*)",
       "Bash(python3 scripts/generate_images.py:*)",
+      "Bash(python3 scripts/validar_guion.py:*)",
       "mcp__mcp-media-toolkit__generate_image_gemini",
       "mcp__mcp-media-toolkit__generate_and_upload_gemini_s3"
     ],
@@ -13,7 +14,7 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write",
+        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",

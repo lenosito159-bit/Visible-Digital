@@ -45,6 +45,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Validar antes de crear el registro.
+[ "$SOLO_IMAGEN" = 1 ] || [ -n "$TEMA" ] || { echo "Falta --tema" >&2; uso 1; }
+
 # Claves para los scripts y para el servidor MCP que lanza Claude Code.
 if [ -f .env ]; then set -a; . ./.env; set +a; fi
 
@@ -64,8 +67,6 @@ if [ "$SOLO_IMAGEN" = 1 ]; then
   imagenes_pendientes
   exit $?
 fi
-
-[ -n "$TEMA" ] || { echo "Falta --tema" >&2; uso 1; }
 
 if [ "$SIN_CLAUDE" = 1 ]; then
   echo "-- Ideas con Gemini (sin Claude)"

@@ -99,6 +99,7 @@ claude mcp list
 | Solo imagen de un guion | `python3 scripts/generate_images.py data/output/guiones/<guion>.md` |
 | Imágenes de todos los guiones pendientes | `python3 scripts/generate_images.py --pendientes` |
 | Solo ideas, sin Claude | `python3 scripts/generate_ideas.py generar --tema "…" --plataforma tiktok --cantidad 5` |
+| Revisar el estilo de un guion | `python3 scripts/validar_guion.py data/output/guiones/<guion>.md` |
 | Ver qué haría (dry run) | añade `--dry-run` a cualquiera de los anteriores |
 | Desatendido (cron/launchd) | `scripts/run_workflow.sh --tema "…"` (ver sección 7) |
 
@@ -177,9 +178,9 @@ herramienta en `.claude/settings.json` y `scripts/generate_images.py`:
 | Archivo | Propósito |
 | --- | --- |
 | `.mcp.json` | Servidor MCP de imágenes. Va en la raíz del proyecto (Claude Code no lee `.claude/.mcp.json`). Las claves se leen del entorno. |
-| `.claude/settings.json` | Permisos, MCP habilitado y hook `PostToolUse` con matcher `Write` |
+| `.claude/settings.json` | Permisos, MCP habilitado y hook `PostToolUse` con matcher `Write\|Edit` |
 | `.claude/commands/generar-contenido.md` | El comando `/generar-contenido` |
-| `.claude/hooks/on-write-generate-image.sh` | Tras escribir un guion con `## Imagen sugerida`, genera la imagen y el `.txt` |
+| `.claude/hooks/on-write-generate-image.sh` | Tras escribir o editar un guion: valida el estilo y, si tiene `## Imagen sugerida`, genera la imagen y el `.txt` |
 | `.claude/skills/estilo-visual/SKILL.md` | Paleta, tipo de imagen, referencias, prohibiciones y prompt base |
 | `.claude/skills/voz-marca/SKILL.md` | Tono, estructura hook-desarrollo-CTA, ejemplos |
 | `.claude/skills/generador-ideas/SKILL.md` | Proceso de ideas sin duplicados |
@@ -189,4 +190,5 @@ herramienta en `.claude/settings.json` y `scripts/generate_images.py`:
 | `scripts/comun.py` | Rutas, `.env`, YAML, llamada a Gemini y prompt base (compartido) |
 | `scripts/generate_ideas.py` | Ideas sin Claude (Gemini), banco de ideas y duplicados |
 | `scripts/generate_images.py` | Imagen de un guion: cliente MCP por stdio, o API de Gemini si falla |
+| `scripts/validar_guion.py` | Comprueba un guion contra las reglas medibles de `brand_voice.yaml` (slides, palabras por slide, prohibidas) |
 | `scripts/run_workflow.sh` | Encadenador para cron/launchd, con registro en `data/logs/` |
