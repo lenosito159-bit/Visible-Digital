@@ -1,0 +1,50 @@
+# Especificaciones por plataforma. Pon activa: false en las que no uses.
+# aspect_ratio admite solo: 1:1, 16:9, 9:16, 4:3, 3:4 (límite de mcp-media-toolkit).
+
+instagram:
+  activa: true
+  formatos: [carrusel, post]
+  longitud:
+    slides: "5-10"
+    caption_palabras: "80-150"
+  aspect_ratio: "3:4"
+  imagenes: 3                   # portada + 2 de apoyo
+  notas: "La primera slide es el hook. Última slide con CTA."
+
+tiktok:
+  activa: true
+  formatos: [video_corto]
+  longitud:
+    duracion_segundos: "30-60"
+    guion_palabras: "80-150"
+  aspect_ratio: "9:16"
+  imagenes: 2                   # referencias visuales para el rodaje/edición
+  notas: "Hook en los 3 primeros segundos. Indica planos y texto en pantalla."
+
+linkedin:
+  activa: true
+  formatos: [post]
+  longitud:
+    palabras: "150-300"
+  aspect_ratio: "4:3"
+  imagenes: 1
+  notas: "Primera línea sin enlace. Párrafos de 1-2 frases."
+
+x:
+  activa: false
+  formatos: [hilo]
+  longitud:
+    tuits: "4-8"
+    caracteres_por_tuit: 280
+  aspect_ratio: "16:9"
+  imagenes: 1
+  notas: "El primer tuit debe funcionar solo."
+
+blog:
+  activa: false
+  formatos: [articulo]
+  longitud:
+    palabras: "800-1500"
+  aspect_ratio: "16:9"
+  imagenes: 2                   # cabecera + una intermedia
+  notas: "H2 cada 200-300 palabras. Meta descripción de 150 caracteres."

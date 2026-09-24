@@ -1,0 +1,51 @@
+# Voz de marca en formato estructurado. La skill .claude/skills/voz-marca/SKILL.md
+# explica el porqué; aquí van los datos concretos. Edita los valores entre corchetes.
+
+marca:
+  nombre: "[NOMBRE_MARCA]"
+  propuesta_de_valor: "[PROPUESTA_DE_VALOR]"
+  audiencia: "[AUDIENCIA_OBJETIVO]"
+  objetivo_principal: "[OBJETIVO_PRINCIPAL]"
+  idioma: es-ES
+
+tono:
+  principal: "[TONO]"            # cercano | profesional | técnico | irreverente | inspirador
+  persona: "[TUTEO_O_USTED]"     # tú | usted | vosotros
+  nivel_tecnico: "[NIVEL_TECNICO]"
+  humor: "[HUMOR]"
+  max_emojis: 2
+
+estructura:
+  hook:
+    max_palabras: 15
+    tipos_preferidos:
+      - dato sorprendente
+      - error común
+      - pregunta incómoda
+      - antes / después
+  cta:
+    # Rota entre estas; usa una sola por pieza.
+    opciones:
+      - "[CTA_1]"                # ej.: "Guárdalo para tu próximo proyecto"
+      - "[CTA_2]"                # ej.: "Suscríbete a la newsletter (enlace en la bio)"
+      - "[CTA_3]"
+
+evitar:
+  - "En el mundo actual"
+  - "Hoy en día"
+  - "En la era digital"
+  - "sinergia"
+  - "disruptivo"
+  - "revolucionario"
+  - "game changer"
+  - "[PALABRA_PROHIBIDA_1]"
+
+hashtags:
+  marca: ["[#HASHTAG_MARCA]"]
+  maximo_por_post: 5
+
+pipeline:
+  ideas_por_defecto: 5           # N ideas por ejecución si no se indica otra cosa
+  guiones_por_defecto: 1         # cuántas de esas ideas se convierten en guion
+  imagenes_por_guion: 3          # máximo de bloques image-prompt por guion
+  calidad_imagen: fast           # fast (1K) | balanced (2K) | quality (4K, lento)

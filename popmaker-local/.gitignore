@@ -1,0 +1,5 @@
+.env
+data/logs/
+data/output/imagenes/*
+!data/output/imagenes/.gitkeep
+__pycache__/
