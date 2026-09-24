@@ -59,13 +59,18 @@ def numero(valor) -> float:
         return 0.0
 
 
+def formatear(valor: float) -> str:
+    """140.0 -> '140'; 12.5 -> '12.5' (el CSV queda limpio para Excel)."""
+    return str(int(valor)) if float(valor).is_integer() else str(valor)
+
+
 def puntuacion(fila: dict) -> float:
     return sum(numero(fila.get(m, 0)) * peso for m, peso in PESOS.items())
 
 
 def mejores(top: int = 5) -> list[dict]:
     filas = sorted(leer(), key=puntuacion, reverse=True)
-    return [dict(f, puntuacion=round(puntuacion(f), 1)) for f in filas[:top] if puntuacion(f) > 0]
+    return [dict(f, puntuacion=formatear(round(puntuacion(f), 1))) for f in filas[:top] if puntuacion(f) > 0]
 
 
 def cmd_registrar(args: argparse.Namespace) -> int:
@@ -84,7 +89,7 @@ def cmd_registrar(args: argparse.Namespace) -> int:
         "titulo": meta.get("titulo", ""),
         "plataforma": meta.get("plataforma", ""),
         "cta": meta.get("cta", ""),
-        **{m: getattr(args, m) for m in METRICAS},
+        **{m: formatear(getattr(args, m)) for m in METRICAS},
     }
     filas.append(nueva)
     escribir(filas)
