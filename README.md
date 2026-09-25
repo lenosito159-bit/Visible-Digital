@@ -83,6 +83,11 @@ const apis = buscarApis(cargarCatalogo(), { categoria: 'weather', sinAuth: true 
 
 Para traer la última versión del catálogo: `npm run catalogo:actualizar`.
 
+## Generación de contenido (PopMaker local)
+
+`popmaker-local/` es un sistema aparte para generar ideas, guiones e imágenes con
+Claude Code y Gemini. Instrucciones en [popmaker-local/README.md](popmaker-local/README.md).
+
 ## Comandos
 
 | Comando                       | Qué hace                                              |

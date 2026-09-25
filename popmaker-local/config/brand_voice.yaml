@@ -1,0 +1,64 @@
+marca:
+  nombre: "Productividad Freelance"
+  audiencia: "freelancers hispanohablantes, 25-40 años, diseñadores/desarrolladores/creativos"
+  nicho: "productividad, gestión del tiempo, negocio digital"
+
+tono:
+  registro: "cercano pero directo, sin rodeos, con base práctica"
+  persona: "segunda persona (tú)"
+  humor: "sí, seco y ocasional"
+  emojis: "máximo 1 por slide, solo si aporta"
+
+estructura:
+  instagram_carrusel:
+    slides: "7-9"
+    slide_1: "Hook: una verdad incómoda o promesa concreta"
+    slides_2_a_n: "Un punto por slide, con ejemplo real o dato específico"
+    slide_final: "CTA claro (guardar, compartir, seguir)"
+    longitud_por_slide: "máximo 15 palabras"
+  # Reglas para el resto de plataformas (las comprueba scripts/validar_guion.py).
+  # "palabras" cuenta las de la sección "## Desarrollo".
+  linkedin:
+    palabras: "150-300"
+  tiktok:
+    escenas: "4-8"
+    palabras: "80-150"
+  youtube:
+    escenas: "5-12"
+    palabras: "900-1500"
+
+prohibidas:
+  - "En el mundo actual"
+  - "Es importante destacar que"
+  - "Sin duda alguna"
+  - "Como todos sabemos"
+  - "En resumidas cuentas"
+  - "No obstante"
+  - "Cabe mencionar"
+  - "Potencia tu productividad"  # genérico
+
+sello:
+  - "Vamos al grano"
+  - "Esto es lo que nadie te dice"
+  - "Probado en carne propia"
+  - "Número concreto, no teoría"
+
+ejemplos:
+  - |
+    "Llevo 4 años freelance. Los primeros 2 trabajaba 12 horas al día
+    y facturaba menos que ahora trabajando 6. La diferencia no fue
+    disciplina. Fue dejar de confundir estar ocupado con ser productivo."
+  - |
+    "Si tu día empieza revisando el móvil, ya perdiste.
+    No por la dopamina. Porque le entregaste las llaves de tu atención
+    a alguien que no paga tu factura."
+
+# Monetización. Con activa: true, 1 de cada `frecuencia` piezas cierra con una CTA
+# hacia tu oferta; el resto, con CTA de audiencia (guardar, compartir, seguir).
+# `generate_ideas.py contexto` dice a Claude qué tipo de CTA toca en cada pieza.
+oferta:
+  activa: false
+  nombre: ""        # ej.: "Plantilla de planificación semanal en Notion"
+  enlace: ""        # ej.: "enlace en la bio" o https://tutienda.com/plantilla
+  precio: ""        # opcional, ej.: "19 €"
+  frecuencia: 3     # 1 de cada 3 piezas

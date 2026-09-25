@@ -1,0 +1,29 @@
+{
+  "enabledMcpjsonServers": ["mcp-media-toolkit"],
+  "permissions": {
+    "allow": [
+      "Edit(./data/**)",
+      "Bash(python3 scripts/generate_ideas.py:*)",
+      "Bash(python3 scripts/generate_images.py:*)",
+      "Bash(python3 scripts/validar_guion.py:*)",
+      "Bash(python3 scripts/metricas.py:*)",
+      "mcp__mcp-media-toolkit__generate_image_gemini",
+      "mcp__mcp-media-toolkit__generate_and_upload_gemini_s3"
+    ],
+    "deny": ["Read(./.env)"]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/on-write-generate-image.sh",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}
