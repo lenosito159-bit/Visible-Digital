@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
+import time
 import unicodedata
 import urllib.error
 import urllib.request
@@ -31,8 +33,23 @@ DIR_GUIONES = RAIZ / "data" / "output" / "guiones"
 DIR_IMAGENES = RAIZ / "data" / "output" / "imagenes"
 SKILL_ESTILO = RAIZ / ".claude" / "skills" / "estilo-visual" / "SKILL.md"
 
-# Modelo de texto para generate_ideas.py sin Claude. Flash: barato y suficiente para ideas.
-MODELO_TEXTO = os.environ.get("GEMINI_TEXT_MODEL", "gemini-2.5-flash")
+# Modelo de texto para generate_ideas.py sin Claude. "gemini-flash-latest" es un alias que
+# Google mantiene apuntando al Flash vigente: los modelos con versión fija (ej. 2.5-flash)
+# dejan de estar disponibles para cuentas nuevas con el tiempo.
+MODELO_TEXTO = os.environ.get("GEMINI_TEXT_MODEL", "gemini-flash-latest")
+AYUDA_CUOTA = ("Google rechazó la petición por cuota (429). En el plan gratuito los modelos de "
+               "imagen tienen límite 0: activa la facturación del proyecto en "
+               "https://aistudio.google.com/ (Settings → Plan / Billing) o espera si es un límite por minuto.")
+
+
+def explicar_error(texto: str) -> str:
+    """Añade una explicación accionable a errores conocidos de Gemini."""
+    if AYUDA_CUOTA in texto:  # ya explicado
+        return texto
+    if "429" in texto or "RESOURCE_EXHAUSTED" in texto or "quota" in texto.lower():
+        return f"{AYUDA_CUOTA}\n     Detalle: {texto[:160]}"
+    return texto
+ESPERAS_REINTENTO = tuple(int(x) for x in os.environ.get("POPMAKER_REINTENTOS", "5,15,30").split(",") if x)
 URL_GEMINI = "https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
 
 
@@ -102,18 +119,25 @@ def gemini(modelo: str, cuerpo: dict, timeout: int = 240) -> dict:
         headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(peticion, timeout=timeout) as resp:
-            return json.load(resp)
-    except urllib.error.HTTPError as e:
-        detalle = e.read().decode(errors="replace")
+    # 500/503 ("high demand") son temporales: se reintenta con esperas crecientes.
+    # 429 no se reintenta: en el plan gratuito de imagen el límite es 0 y esperar no sirve.
+    for intento, espera in enumerate((*ESPERAS_REINTENTO, None), start=1):
         try:
-            detalle = json.loads(detalle)["error"]["message"]
-        except (ValueError, KeyError, TypeError):
-            detalle = detalle[:300]
-        raise RuntimeError(f"Gemini respondió {e.code}: {detalle}") from e
-    except urllib.error.URLError as e:
-        raise RuntimeError(f"No se pudo conectar con Gemini: {e.reason}") from e
+            with urllib.request.urlopen(peticion, timeout=timeout) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as e:
+            detalle = e.read().decode(errors="replace")
+            try:
+                detalle = json.loads(detalle)["error"]["message"]
+            except (ValueError, KeyError, TypeError):
+                detalle = detalle[:300]
+            if e.code in (500, 503) and espera is not None:
+                print(f"   Gemini {e.code} (saturado); reintento {intento} en {espera} s...", file=sys.stderr)
+                time.sleep(espera)
+                continue
+            raise RuntimeError(explicar_error(f"Gemini respondió {e.code}: {detalle}")) from e
+        except urllib.error.URLError as e:
+            raise RuntimeError(f"No se pudo conectar con Gemini: {e.reason}") from e
 
 
 def texto_gemini(prompt: str) -> str:

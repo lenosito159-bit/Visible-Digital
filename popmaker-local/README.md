@@ -33,7 +33,7 @@ skills, y las imágenes se generan con Gemini (Nano Banana) a través del servid
 2. **Create API key** → elige o crea un proyecto de Google Cloud.
 3. Copia la clave (`AIza…`) en `.env` como `GEMINI_API_KEY`.
 
-La generación de imágenes suele requerir facturación activa en el proyecto. Precios:
+**La generación de imágenes requiere facturación activa**: en el plan gratuito los modelos de imagen tienen un límite de 0 y responden con el error 429. Actívala en AI Studio (Settings → Plan / Billing). Los modelos de texto sí funcionan gratis. Precios:
 [ai.google.dev/pricing](https://ai.google.dev/pricing).
 
 ### Almacenamiento S3 (opcional: para tener URLs públicas)

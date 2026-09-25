@@ -210,6 +210,18 @@ class TestImagenes(Base):
         self.assertEqual(self.peticiones(), [])
         self.assertFalse(ruta.with_suffix(".txt").exists())
 
+    def test_cuota_agotada_explica_que_hacer(self):
+        r = self.py("generate_images.py", str(self.guion()), env={"POPMAKER_TEST_ERROR": "429"})
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("activa la facturación", r.stderr)
+        self.assertEqual(r.stderr.count("activa la facturación"), 1, "el mensaje no debe duplicarse")
+
+    def test_reintenta_si_gemini_esta_saturado(self):
+        r = self.py("generate_images.py", str(self.guion()),
+                    env={"POPMAKER_TEST_ERROR": "503", "POPMAKER_REINTENTOS": "0"})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("reintento 1", r.stderr)
+
     def test_sin_clave_falla_con_mensaje_claro(self):
         r = self.py("generate_images.py", str(self.guion()), env={"GEMINI_API_KEY": ""})
         self.assertEqual(r.returncode, 1)

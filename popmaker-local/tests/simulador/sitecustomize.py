@@ -3,11 +3,14 @@
 Se carga solo en los subprocesos de los tests (PYTHONPATH=tests/simulador).
 Texto -> devuelve 2 ideas fijas. Imagen -> devuelve un PNG mínimo.
 Guarda cada petición en $POPMAKER_TEST_LOG para que los tests la inspeccionen.
+POPMAKER_TEST_ERROR="503" hace fallar la primera petición con 503 (luego responde bien);
+POPMAKER_TEST_ERROR="429" hace fallar todas con 429 (cuota agotada).
 """
 import base64
 import io
 import json
 import os
+import urllib.error
 import urllib.request
 
 IDEAS = """### Tu mañana no necesita 14 pasos, necesita 3
@@ -35,8 +38,19 @@ class _Respuesta(io.BytesIO):
         return False
 
 
+def _error(codigo, mensaje):
+    cuerpo = json.dumps({"error": {"code": codigo, "message": mensaje}}).encode()
+    return urllib.error.HTTPError("https://gemini", codigo, mensaje, {}, io.BytesIO(cuerpo))
+
+
 def _falso(peticion, timeout=0):
     cuerpo = json.loads(peticion.data)
+    modo = os.environ.get("POPMAKER_TEST_ERROR", "")
+    if modo == "429":
+        raise _error(429, "You exceeded your current quota, please check your plan and billing details.")
+    if modo == "503" and not os.path.exists(os.environ["POPMAKER_TEST_LOG"] + ".503"):
+        open(os.environ["POPMAKER_TEST_LOG"] + ".503", "w").close()
+        raise _error(503, "This model is currently experiencing high demand.")
     if os.environ.get("POPMAKER_TEST_LOG"):
         with open(os.environ["POPMAKER_TEST_LOG"], "a", encoding="utf-8") as f:
             f.write(json.dumps({"url": peticion.full_url, "cuerpo": cuerpo}) + "\n")

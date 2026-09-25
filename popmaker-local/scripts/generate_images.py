@@ -225,7 +225,7 @@ def procesar(ruta: Path, via: str, calidad: str, dry_run: bool, forzar: bool) ->
             url, usado = (generar_via_mcp if metodo == "mcp" else generar_via_api)(info, calidad)
             break
         except Exception as e:  # noqa: BLE001 - se informa y se prueba la siguiente vía
-            print(f"   Falló la vía {metodo}: {e}", file=sys.stderr)
+            print(f"   Falló la vía {metodo}: {comun.explicar_error(str(e))}", file=sys.stderr)
     else:
         print("   ERROR: no se pudo generar la imagen.", file=sys.stderr)
         return False
