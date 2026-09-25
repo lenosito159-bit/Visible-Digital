@@ -63,6 +63,15 @@ describe('buscarApis', () => {
   it('filtra por CORS', () => {
     expect(buscarApis(apis, { conCors: true }).map((a) => a.nombre)).toEqual(['Cat Facts']);
   });
+
+  it('ordena por relevancia: nombre, luego categoría, luego descripción', () => {
+    const lista = [
+      { nombre: 'Aviation', descripcion: 'Airport weather', categoria: 'Transportation', auth: null, https: true, cors: 'yes' },
+      { nombre: 'Open-Meteo', descripcion: 'Forecasts', categoria: 'Weather', auth: null, https: true, cors: 'yes' },
+      { nombre: 'WeatherAPI', descripcion: 'Forecasts', categoria: 'Weather', auth: null, https: true, cors: 'yes' },
+    ];
+    expect(buscarApis(lista, { texto: 'weather' }).map((a) => a.nombre)).toEqual(['WeatherAPI', 'Open-Meteo', 'Aviation']);
+  });
 });
 
 describe('catalogo/apis.json', () => {

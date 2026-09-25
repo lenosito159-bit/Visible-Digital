@@ -73,12 +73,15 @@ const normalizarTexto = (texto) =>
  * - sinAuth: solo APIs que no necesitan clave
  * - soloHttps: solo APIs con HTTPS
  * - conCors: solo APIs con CORS (se pueden llamar desde el navegador)
+ *
+ * Con texto, los resultados se ordenan por relevancia: primero las que lo
+ * tienen en el nombre, luego en la categoría y por último en la descripción.
  */
 export function buscarApis(apis, { texto, categoria, sinAuth, soloHttps, conCors } = {}) {
   const palabras = texto ? normalizarTexto(texto).split(/\s+/).filter(Boolean) : [];
   const cat = categoria ? normalizarTexto(categoria) : null;
 
-  return apis.filter((api) => {
+  const filtradas = apis.filter((api) => {
     if (sinAuth && api.auth !== null) return false;
     if (soloHttps && !api.https) return false;
     if (conCors && api.cors !== 'yes') return false;
@@ -89,6 +92,20 @@ export function buscarApis(apis, { texto, categoria, sinAuth, soloHttps, conCors
     }
     return true;
   });
+  if (!palabras.length) return filtradas;
+
+  const relevancia = (api) => {
+    const nombre = normalizarTexto(api.nombre);
+    const categoriaApi = normalizarTexto(api.categoria);
+    return palabras.reduce(
+      (total, palabra) => total + (nombre.includes(palabra) ? 2 : 0) + (categoriaApi.includes(palabra) ? 1 : 0),
+      0,
+    );
+  };
+  return filtradas
+    .map((api) => ({ api, puntos: relevancia(api) }))
+    .sort((a, b) => b.puntos - a.puntos)
+    .map(({ api }) => api);
 }
 
 /** Devuelve las categorías con su número de APIs, ordenadas por nombre. */

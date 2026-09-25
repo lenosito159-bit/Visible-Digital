@@ -19,19 +19,46 @@ const AYUDA = `Uso: npm run buscar -- [texto] [opciones]
   --categorias        Lista las categorías disponibles
   --ayuda             Muestra esta ayuda`;
 
-const { values, positionals } = parseArgs({
-  allowPositionals: true,
-  options: {
-    categoria: { type: 'string' },
-    'sin-auth': { type: 'boolean' },
-    https: { type: 'boolean' },
-    cors: { type: 'boolean' },
-    limite: { type: 'string', default: '30' },
-    json: { type: 'boolean' },
-    categorias: { type: 'boolean' },
-    ayuda: { type: 'boolean' },
-  },
-});
+const OPCIONES = {
+  categoria: { type: 'string' },
+  'sin-auth': { type: 'boolean' },
+  https: { type: 'boolean' },
+  cors: { type: 'boolean' },
+  limite: { type: 'string', default: '30' },
+  json: { type: 'boolean' },
+  categorias: { type: 'boolean' },
+  ayuda: { type: 'boolean' },
+};
+
+function fallar(mensaje) {
+  console.error(`Error: ${mensaje}\nUsa "npm run buscar -- --ayuda" para ver las opciones.`);
+  process.exit(1);
+}
+
+function explicarError(error) {
+  const opcion = error.message.match(/'(-[^' ]+)/)?.[1] ?? '';
+  if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') {
+    const sinGuiones = (texto) => texto.replace(/-/g, '');
+    const parecida = Object.keys(OPCIONES).find((nombre) => sinGuiones(nombre) === sinGuiones(opcion));
+    return `opción desconocida ${opcion}${parecida ? `. ¿Quisiste decir --${parecida}?` : ''}`;
+  }
+  if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') {
+    return error.message.includes('argument missing') ? `falta el valor de ${opcion}` : `${opcion} no admite valor`;
+  }
+  return error.message;
+}
+
+let values;
+let positionals;
+try {
+  ({ values, positionals } = parseArgs({ allowPositionals: true, options: OPCIONES }));
+} catch (error) {
+  fallar(explicarError(error));
+}
+
+if (!/^\d+$/.test(values.limite)) {
+  fallar('--limite debe ser un número entero (0 = todos)');
+}
 
 if (values.ayuda) {
   console.log(AYUDA);
