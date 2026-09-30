@@ -265,6 +265,9 @@ class TestMetricas(Base):
         self.assertIn("38", ranking[1], "la pieza con ventas va primero")
         self.assertIn("publicado", self.py("generate_ideas.py", "listar").stdout)
         self.assertIn("Lo que mejor ha funcionado", self.py("generate_ideas.py", "contexto", "--tema", "x").stdout)
+        exportado = self.py("metricas.py", "exportar").stdout.splitlines()
+        self.assertTrue(exportado[0].endswith(",puntuacion"))
+        self.assertIn("b.md", exportado[1], "exportar ordena de mejor a peor")
         # re-registrar actualiza, no duplica
         self.py("metricas.py", "registrar", str(a), "--guardados", "50")
         self.assertEqual(len((self.raiz / "data/metricas.csv").read_text().strip().splitlines()), 3)

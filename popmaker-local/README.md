@@ -139,6 +139,20 @@ publicar con constancia, medir y repetir lo que funciona, y llevar a la audienci
 Estados de cada idea en el banco: `pendiente` → `guion` (lo marca el hook) → `publicado`
 (al registrar métricas).
 
+## 5c. Integraciones (plugins de claude.ai)
+
+Datos en `config/integraciones.yaml`. Las usa Claude con los conectores de tu cuenta.
+
+| Plugin | Para qué | Estado |
+| --- | --- | --- |
+| Lovable | Landing de venta de la plantilla (`/`) y panel de contenido (`/panel`): sube `data/metricas.csv`, `data/ideas/` y `data/output/guiones/` y los ves con ranking y carruseles | Creado |
+| Google Drive | `/sincronizar-metricas` crea una hoja de Google Sheets con tus métricas y el ranking | Listo |
+| Shopify | Vender la plantilla como producto digital; el enlace del producto va al botón de la landing | Falta instalar la app Digital Products y pasar del plan trial |
+| Webflow | Alternativa para la landing | Tu cuenta no tiene sitios todavía |
+
+Cuando la venta esté lista: pon el precio y el enlace en `src/config/oferta.ts` del proyecto
+de Lovable, la URL en `oferta.url` y `oferta.activa: true` en `config/brand_voice.yaml`.
+
 ## 6. Ajustes manuales que debes hacer
 
 1. **`.env`**: `GEMINI_API_KEY` y, si quieres URLs públicas, todas las `S3_*`.
@@ -224,6 +238,8 @@ herramienta en `.claude/settings.json` y `scripts/generate_images.py`:
 | `scripts/generate_images.py` | Imagen de un guion: cliente MCP por stdio, o API de Gemini si falla |
 | `scripts/instalar.sh` | Puesta en marcha: dependencias, `.env` y clave (sin mostrarla) |
 | `scripts/diagnostico.py` | Dice qué falta: programas, clave, facturación de imágenes, oferta y tests |
+| `.claude/commands/sincronizar-metricas.md` | `/sincronizar-metricas`: métricas y ranking a Google Sheets |
+| `config/integraciones.yaml` | Tienda, proyecto de Lovable, hojas de Drive y sitio de Webflow |
 | `scripts/metricas.py` | Resultados de cada pieza (`data/metricas.csv`) y ranking por puntuación orientada a ingresos |
 | `tests/` | 20 tests automáticos con Gemini simulado: no gastan créditos |
 | `scripts/validar_guion.py` | Comprueba un guion contra las reglas medibles de `brand_voice.yaml` (slides, palabras por slide, prohibidas) |

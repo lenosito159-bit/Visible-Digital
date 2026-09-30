@@ -57,8 +57,9 @@ ejemplos:
 # hacia tu oferta; el resto, con CTA de audiencia (guardar, compartir, seguir).
 # `generate_ideas.py contexto` dice a Claude qué tipo de CTA toca en cada pieza.
 oferta:
-  activa: false
-  nombre: ""        # ej.: "Plantilla de planificación semanal en Notion"
-  enlace: ""        # ej.: "enlace en la bio" o https://tutienda.com/plantilla
+  activa: false     # ponla en true cuando la landing tenga precio y enlace de compra
+  nombre: "Plantilla de planificación semanal en Notion"
+  enlace: "enlace en la bio"   # texto que debe aparecer en la CTA de las piezas de oferta
+  url: ""           # la web de venta que pones en la bio (landing de Lovable o producto de Shopify)
   precio: ""        # opcional, ej.: "19 €"
   frecuencia: 3     # 1 de cada 3 piezas

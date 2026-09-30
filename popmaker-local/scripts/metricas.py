@@ -3,6 +3,7 @@
 
   registrar  Añade o actualiza los resultados de un guion en data/metricas.csv.
   ranking    Muestra las piezas con mejor puntuación.
+  exportar   Imprime el CSV con la puntuación (lo usa /sincronizar-metricas).
 
 Ejemplos:
   python3 scripts/metricas.py registrar data/output/guiones/<guion>.md \\
@@ -101,6 +102,15 @@ def cmd_registrar(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_exportar(_: argparse.Namespace) -> int:
+    """CSV con la columna puntuación, ordenado de mejor a peor (para Google Sheets)."""
+    escritor = csv.DictWriter(sys.stdout, fieldnames=[*COLUMNAS, "puntuacion"])
+    escritor.writeheader()
+    for fila in sorted(leer(), key=puntuacion, reverse=True):
+        escritor.writerow({**fila, "puntuacion": formatear(round(puntuacion(fila), 1))})
+    return 0
+
+
 def cmd_ranking(args: argparse.Namespace) -> int:
     filas = mejores(args.top)
     if not filas:
@@ -125,6 +135,9 @@ def main() -> int:
     p = sub.add_parser("ranking", help="Piezas con mejor puntuación")
     p.add_argument("--top", type=int, default=10)
     p.set_defaults(func=cmd_ranking)
+
+    p = sub.add_parser("exportar", help="CSV con puntuación para Google Sheets")
+    p.set_defaults(func=cmd_exportar)
 
     args = parser.parse_args()
     return args.func(args)
