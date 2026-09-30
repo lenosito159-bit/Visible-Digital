@@ -102,3 +102,10 @@ Para que también pruebe tu API, añade en *Settings → Secrets and variables �
 
 - Secretos: `API_BASE_URL` y, si hace falta, `API_TOKEN`
 - Variable (opcional): `API_HEALTH_PATH`
+
+## PeruPOS
+
+La carpeta [`perupos/`](perupos/README.md) contiene **PeruPOS**, un punto de venta
+offline-first para bodegas peruanas (app Expo + API Node.js/PostgreSQL) con pagos mixtos
+efectivo + Yape/Plin, fiado digital y comprobantes SUNAT. Tiene su propio
+[README](perupos/README.md) y su workflow `.github/workflows/perupos.yml`.

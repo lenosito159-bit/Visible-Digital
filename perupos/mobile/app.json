@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "PeruPOS",
+    "slug": "perupos",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/images/icon.png",
+    "scheme": "perupos",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "supportsTablet": true,
+      "bundleIdentifier": "pe.perupos.app"
+    },
+    "android": {
+      "package": "pe.perupos.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#1E3A5F",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "permissions": ["android.permission.CAMERA"],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "PeruPOS usa la cámara para escanear códigos de barras y tomar fotos de productos.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PeruPOS necesita tus fotos para elegir la imagen de un producto o cliente.",
+          "cameraPermission": "PeruPOS usa la cámara para tomar fotos de productos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#10B981"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1E3A5F",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 96
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://192.168.1.50:3000"
+    }
+  }
+}
