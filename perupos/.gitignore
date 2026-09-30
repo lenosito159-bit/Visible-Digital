@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+backend/uploads/*
+!backend/uploads/.gitkeep
+mobile/.expo/
+mobile/ios/
+mobile/android/
+mobile/dist/
+*.log
+test/.uploads/
