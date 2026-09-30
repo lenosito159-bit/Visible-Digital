@@ -14,6 +14,45 @@ Los comandos se ejecutan desde `perupos/` con **npm** (el proyecto usa `package-
       INTERNET, VIBRATE, almacenamiento; **sin micrófono** (RECORD_AUDIO se quita explícitamente).
       Textos de permisos de iOS en español.
 
+## Cómo instalar el APK en un Android (paso a paso)
+
+Necesitas una cuenta gratuita en [expo.dev](https://expo.dev). El build se hace en la nube
+de Expo: no necesitas Android Studio.
+
+1. **Servidor accesible desde el celular.** En tu computadora, desde `perupos/`:
+   `npm run db:seed -- --demo` y `npm run dev:backend`. Averigua la IP de tu computadora en la
+   WiFi (Windows: `ipconfig`; Mac/Linux: `ip addr` o Preferencias de red), por ejemplo
+   `192.168.1.50`. Si el firewall pregunta, permite el puerto 3000.
+2. **Pon esa IP** en `mobile/eas.json`, perfiles `development` y `preview`:
+   `"EXPO_PUBLIC_API_URL": "http://192.168.1.50:3000"`.
+3. **Vincula el proyecto** (una sola vez), desde `perupos/mobile`:
+   ```bash
+   npx eas-cli@latest login
+   npx eas-cli@latest init
+   ```
+   `eas init` crea el proyecto en expo.dev y te da un **projectId**. Como la app usa
+   `app.config.ts`, puede que no pueda escribirlo solo: en ese caso ábrelo en `app.json` y
+   agrégalo dentro de `"expo"` así:
+   `"extra": { "apiUrl": "...", "eas": { "projectId": "EL-ID-QUE-TE-DIO" } }`.
+   Sin projectId, el build no arranca y las notificaciones push no llegan.
+4. **Construye el APK:**
+   ```bash
+   npx eas-cli@latest build --platform android --profile preview
+   ```
+   Tarda ~15–25 minutos en la cola gratuita. Al terminar muestra un **enlace y un QR**.
+5. **Instálalo:** abre el enlace en el celular → descarga el `.apk` → Android pedirá permitir
+   "Instalar apps desconocidas" para el navegador → **Instalar**. Play Protect puede avisar que
+   la app no es conocida: toca *Más detalles → Instalar de todos modos*.
+6. Abre **PeruPOS** y sigue [`scripts/smoke-test.md`](scripts/smoke-test.md).
+
+**Perfiles** (`mobile/eas.json`):
+
+| Perfil | Para qué | Salida | http sin HTTPS |
+| --- | --- | --- | --- |
+| `development` | Desarrollar con recarga en vivo (`npx expo start --dev-client`) y probar push | APK | permitido |
+| `preview` | Probar en la tienda como la usará el vendedor | APK | permitido |
+| `production` | Google Play | AAB | **bloqueado**: el servidor debe tener HTTPS |
+
 ## B. Prueba en dispositivo real (bloqueante para uso en tienda)
 
 - [ ] Instalar APK en un Android físico (no solo emulador): `npx eas-cli build -p android --profile preview`
