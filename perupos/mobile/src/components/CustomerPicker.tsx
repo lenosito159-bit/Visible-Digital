@@ -3,12 +3,12 @@ import * as Crypto from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { formatSoles, normalizePeruMobile, type Customer } from '@perupos/shared';
+import { REPUTATION_LABELS, formatSoles, normalizePeruMobile, type Customer, type CustomerTreatment } from '@perupos/shared';
 import { useAuth } from '@/lib/auth';
 import * as db from '@/lib/db';
 import { registerCustomer } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
-import { Banner, Button, Field } from './ui';
+import { Banner, Button, Chip, Field } from './ui';
 
 export function CustomerRow({ customer, onPress, right }: { customer: Customer; onPress?: () => void; right?: React.ReactNode }) {
   const usage = customer.creditLimitCents > 0 ? customer.balanceCents / customer.creditLimitCents : 0;
@@ -18,9 +18,23 @@ export function CustomerRow({ customer, onPress, right }: { customer: Customer; 
         <Text style={styles.avatarText}>{customer.name.trim().charAt(0).toUpperCase()}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{customer.name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{customer.name}</Text>
+          {customer.reputation && (
+            <View style={[styles.rep, { backgroundColor: customer.reputation === 'CUMPLIDO' ? colors.primarySoft : colors.dangerSoft }]}>
+              <Ionicons
+                name={customer.reputation === 'CUMPLIDO' ? 'thumbs-up' : 'alert-circle'}
+                size={14}
+                color={customer.reputation === 'CUMPLIDO' ? colors.primaryDark : colors.danger}
+              />
+              <Text style={[styles.repText, { color: customer.reputation === 'CUMPLIDO' ? colors.primaryDark : colors.danger }]}>
+                {REPUTATION_LABELS[customer.reputation]}
+              </Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.meta}>
-          Debe {formatSoles(customer.balanceCents)} · límite {formatSoles(customer.creditLimitCents)}
+          Debe {formatSoles(customer.balanceCents)} · le fías hasta {formatSoles(customer.creditLimitCents)}
         </Text>
         <View style={styles.bar}>
           <View
@@ -54,6 +68,7 @@ export function CustomerPicker({
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [trato, setTrato] = useState<CustomerTreatment>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,6 +84,8 @@ export function CustomerPicker({
     const customer: Customer = {
       id,
       name: name.trim(),
+      trato,
+      reputation: null,
       phone: phone || null,
       photoUrl: null,
       docType: 'NONE',
@@ -80,10 +97,11 @@ export function CustomerPicker({
       active: true,
       updatedAt: now,
     };
-    await registerCustomer({ id, name: customer.name, phone: customer.phone, docType: 'NONE' }, customer);
+    await registerCustomer({ id, name: customer.name, phone: customer.phone, docType: 'NONE', trato }, customer);
     setCreating(false);
     setName('');
     setPhone('');
+    setTrato(null);
     onSelect(customer);
   };
 
@@ -100,7 +118,13 @@ export function CustomerPicker({
           <View style={{ padding: spacing.lg }}>
             <Field label="Nombre" value={name} onChangeText={setName} autoFocus placeholder="Ej. Juan Pérez" />
             <Field label="Celular (opcional, para WhatsApp)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="987 654 321" />
-            <Text style={styles.meta}>Límite de crédito: {formatSoles(settings?.defaultCreditLimitCents ?? 5000)} (el Administrador puede cambiarlo).</Text>
+            <Text style={shared.label}>¿Cómo le dices? (para los mensajes)</Text>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+              <Chip label="Don" selected={trato === 'DON'} onPress={() => setTrato('DON')} />
+              <Chip label="Doña" selected={trato === 'DONA'} onPress={() => setTrato('DONA')} />
+              <Chip label="Solo el nombre" selected={trato === null} onPress={() => setTrato(null)} />
+            </View>
+            <Text style={styles.meta}>Le puedes fiar hasta {formatSoles(settings?.defaultCreditLimitCents ?? 5000)} (el Administrador puede cambiarlo).</Text>
             {error && <Banner tone="danger" text={error} />}
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
               <Button label="Volver" variant="ghost" onPress={() => setCreating(false)} style={{ flex: 1 }} />
@@ -134,7 +158,10 @@ const styles = StyleSheet.create({
   row: { ...shared.card, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.secondary, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFFFFF', fontSize: font.large, fontWeight: '900' },
-  name: { fontSize: font.body, fontWeight: '800', color: colors.text },
+  name: { fontSize: font.body, fontWeight: '800', color: colors.text, flexShrink: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  rep: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  repText: { fontSize: 12, fontWeight: '800' },
   meta: { fontSize: font.small, color: colors.textMuted, marginTop: 2 },
   bar: { height: 6, backgroundColor: colors.secondarySoft, borderRadius: 3, marginTop: 6, overflow: 'hidden' },
   barFill: { height: 6, borderRadius: 3 },

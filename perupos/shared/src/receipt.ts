@@ -1,6 +1,6 @@
 import { amountInWords, formatSoles } from './money.js';
 import { isElectronic } from './rules.js';
-import type { AbonoReceipt, BusinessSettings, Sale } from './types.js';
+import type { AbonoReceipt, BusinessSettings, CashSummary, PaymentMethod, Sale } from './types.js';
 import { DOC_TYPE_LABELS, PAYMENT_METHOD_LABELS, TAX_REGIME_LABELS } from './types.js';
 
 /** Ancho típico de una ticketera térmica de 58 mm (32) u 80 mm (42/48). */
@@ -102,7 +102,7 @@ export function buildReceiptText(
   out.push('Forma de pago:');
   for (const p of sale.payments) {
     out.push(row(`  ${PAYMENT_METHOD_LABELS[p.method]}`, formatSoles(p.amountCents), width));
-    if (p.method === 'CASH' && p.tenderedCents && p.tenderedCents > p.amountCents) {
+    if (p.tenderedCents && p.tenderedCents > p.amountCents) {
       out.push(row('  Recibido', formatSoles(p.tenderedCents), width));
     }
   }
@@ -145,4 +145,42 @@ export function buildAbonoReceiptText(
     sep,
     abono.balanceCents === 0 ? center('¡Deuda cancelada! Gracias.', width) : center('Gracias por su abono.', width),
   ].join('\n');
+}
+
+/** Resumen del cierre de caja para mandarlo por WhatsApp al dueño. */
+export function buildCashCloseText(cash: CashSummary, business: BusinessSettings, width: ReceiptWidth = 32): string {
+  const sep = '-'.repeat(width);
+  const methods: PaymentMethod[] = ['CASH', 'YAPE', 'PLIN', 'TRANSFER', 'CARD', 'FIADO'];
+  const lines = [
+    center(business.nombreComercial || business.razonSocial, width),
+    center(cash.closedAt ? 'CIERRE DE CAJA' : 'CAJA (PARCIAL)', width),
+    `Abrió: ${cash.openedBy} ${formatLimaDate(cash.openedAt)}`,
+    cash.closedAt ? `Cerró: ${formatLimaDate(cash.closedAt)}` : `Al: ${formatLimaDate(new Date().toISOString())}`,
+    sep,
+    `Ventas del turno (${cash.salesCount}):`,
+    ...methods.filter((m) => cash.byMethod[m]).map((m) => row(`  ${PAYMENT_METHOD_LABELS[m]}`, formatSoles(cash.byMethod[m]!), width)),
+  ];
+  const abonos = methods.filter((m) => cash.abonosByMethod[m]);
+  if (abonos.length) {
+    lines.push('Abonos cobrados:');
+    lines.push(...abonos.map((m) => row(`  ${PAYMENT_METHOD_LABELS[m]}`, formatSoles(cash.abonosByMethod[m]!), width)));
+  }
+  lines.push(
+    sep,
+    'Efectivo en el cajón:',
+    row('  Apertura', formatSoles(cash.openingCents), width),
+    row('  Ventas en efectivo', formatSoles(cash.cashSalesCents), width),
+  );
+  if (cash.digitalChangeCents) lines.push(row('  Vuelto de yapeos', `-${formatSoles(cash.digitalChangeCents)}`, width));
+  if (cash.cashAbonosCents) lines.push(row('  Abonos en efectivo', formatSoles(cash.cashAbonosCents), width));
+  if (cash.inCents) lines.push(row('  Ingresos', formatSoles(cash.inCents), width));
+  if (cash.outCents) lines.push(row('  Retiros y pagos', `-${formatSoles(cash.outCents)}`, width));
+  lines.push(row('DEBE HABER', formatSoles(cash.expectedCents), width));
+  if (cash.countedCents !== null) {
+    lines.push(row('Contado', formatSoles(cash.countedCents), width));
+    if (cash.transferredCents) lines.push(row('Yapeado al admin.', formatSoles(cash.transferredCents), width));
+    const diff = cash.differenceCents ?? 0;
+    lines.push(row(diff === 0 ? 'CUADRA' : diff > 0 ? 'SOBRA' : 'FALTA', formatSoles(Math.abs(diff)), width));
+  }
+  return lines.join('\n');
 }

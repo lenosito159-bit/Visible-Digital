@@ -36,7 +36,7 @@ export default function AdminHome() {
   return (
     <Screen>
       <Text style={[shared.sectionTitle, { fontSize: 22 }]}>{settings?.nombreComercial || settings?.razonSocial || 'Mi negocio'}</Text>
-      {!online && <Banner tone="warning" text="Sin internet: los reportes se actualizan al reconectar. Puedes seguir vendiendo." />}
+      {!online && <Banner tone="warning" text="No hay señal: los números se actualizan cuando vuelva. Puedes seguir vendiendo." />}
       {summary && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           <StatCard label="Ventas de hoy" cents={summary.salesCents} tone={colors.primaryDark} icon="trending-up" />

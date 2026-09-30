@@ -11,6 +11,7 @@ import type { AuthUser } from '../http/auth.js';
 import { badRequest, notFound } from '../http/errors.js';
 import { iso, toCustomer } from './mappers.js';
 import { consumeCharge } from './payments/charges.js';
+import { claimOperationRef, normalizeReference } from './payments/operationRefs.js';
 
 const CUSTOMER_SELECT = `
   SELECT c.*, d.balance_cents, d.last_payment_at, d.oldest_unpaid_at
@@ -107,9 +108,10 @@ export async function createAbono(user: AuthUser, input: AbonoInput): Promise<Ab
     } else if (isQr && input.confirmation !== 'MANUAL') {
       throw badRequest('Falta confirmar el pago por Yape/Plin.', 'PAGO_INVALIDO');
     }
+    const manualRef = isQr && input.confirmation === 'MANUAL' && input.reference?.trim() ? input.reference.trim() : null;
     await db.query(
-      `INSERT INTO credit_movements (id, customer_id, kind, amount_cents, method, confirmation, charge_id, user_id, created_at)
-       VALUES ($1, $2, 'ABONO', $3, $4, $5, $6, $7, LEAST($8::timestamptz, now()))`,
+      `INSERT INTO credit_movements (id, customer_id, kind, amount_cents, method, confirmation, charge_id, reference, user_id, created_at)
+       VALUES ($1, $2, 'ABONO', $3, $4, $5, $6, $7, $8, LEAST($9::timestamptz, now()))`,
       [
         input.id,
         input.customerId,
@@ -117,12 +119,14 @@ export async function createAbono(user: AuthUser, input: AbonoInput): Promise<Ab
         method,
         isQr ? (input.confirmation ?? null) : null,
         isQr && input.confirmation === 'QR' ? input.chargeId : null,
+        manualRef ? normalizeReference(manualRef) : null,
         user.id,
         input.createdAt,
       ],
     );
+    if (manualRef) await claimOperationRef(db, input.method, manualRef, { movementId: input.id });
     if (isQr && input.confirmation === 'MANUAL') {
-      await audit(db, user.id, 'PAGO_DIGITAL_MANUAL', 'abono', input.id, { method, amountCents: input.amountCents });
+      await audit(db, user.id, 'PAGO_DIGITAL_MANUAL', 'abono', input.id, { method, amountCents: input.amountCents, reference: manualRef });
     }
     return (await abonoReceipt(db, input.id))!;
   });

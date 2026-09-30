@@ -60,14 +60,19 @@ export function buildLocalSale(
       taxAffectation: l.product.taxAffectation,
       igvCents: taxes.lines[i]?.igvCents ?? 0,
     })),
-    payments: input.payments.map((p) => ({
-      method: p.method,
-      amountCents: p.amountCents,
-      tenderedCents: p.method === 'CASH' ? (p.tenderedCents ?? p.amountCents) : null,
-      changeCents: p.method === 'CASH' ? (p.tenderedCents ?? p.amountCents) - p.amountCents : 0,
-      confirmation: QR_METHODS.includes(p.method) ? (p.confirmation ?? null) : null,
-      chargeId: p.chargeId ?? null,
-    })),
+    payments: input.payments.map((p) => {
+      // Efectivo siempre guarda lo recibido; Yape/Plin solo si el cliente pagó de más.
+      const tendered = p.method === 'CASH' ? (p.tenderedCents ?? p.amountCents) : (p.tenderedCents ?? null);
+      return {
+        method: p.method,
+        amountCents: p.amountCents,
+        tenderedCents: tendered,
+        changeCents: tendered === null ? 0 : tendered - p.amountCents,
+        confirmation: QR_METHODS.includes(p.method) ? (p.confirmation ?? null) : null,
+        chargeId: p.chargeId ?? null,
+        reference: p.reference ?? null,
+      };
+    }),
     subtotalCents: taxes.subtotalCents,
     discountCents: taxes.discountCents,
     gravadaCents: taxes.gravadaCents,
@@ -127,7 +132,7 @@ export function receiptHtml(sale: Sale, business: BusinessSettings): string {
   const pays = sale.payments
     .map((p) =>
       line(PAYMENT_METHOD_LABELS[p.method], formatSoles(p.amountCents)) +
-      (p.method === 'CASH' && p.tenderedCents && p.tenderedCents > p.amountCents ? line('Recibido', formatSoles(p.tenderedCents)) : ''),
+      (p.tenderedCents && p.tenderedCents > p.amountCents ? line('Recibido', formatSoles(p.tenderedCents)) : ''),
     )
     .join('');
   const qr = sale.sunatQr ? `<div class="c">${qrSvg(sale.sunatQr)}</div>` : '';

@@ -27,7 +27,7 @@ export const saleInputSchema = z.object({
         tenderedCents: cents.optional(),
         confirmation: z.enum(['QR', 'MANUAL']).optional(),
         chargeId: z.uuid().optional(),
-        reference: z.string().max(100).optional(),
+        reference: z.string().max(40).optional(),
       }),
     )
     .min(1)
@@ -53,6 +53,7 @@ export const abonoInputSchema = z.object({
   method: z.enum(['CASH', 'YAPE', 'PLIN', 'TRANSFER', 'CARD']),
   confirmation: z.enum(['QR', 'MANUAL']).optional(),
   chargeId: z.uuid().optional(),
+  reference: z.string().max(40).optional(),
   createdAt: isoDate,
 });
 
@@ -64,6 +65,8 @@ export const customerInputSchema = z.object({
   docType: identityDoc.default('NONE'),
   docNumber: z.string().trim().max(20).nullable().optional(),
   creditLimitCents: cents.optional(),
+  trato: z.enum(['DON', 'DONA']).nullable().optional(),
+  reputation: z.enum(['CUMPLIDO', 'MOROSO']).nullable().optional(),
 });
 
 export const productQuickSchema = z.object({

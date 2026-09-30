@@ -9,6 +9,7 @@ import {
   formatSoles,
   isElectronic,
   lineTotal,
+  qrAmount,
   validateBuyer,
   type Sale,
   type SaleInput,
@@ -18,6 +19,7 @@ import { verifyOverrideToken, type AuthUser } from '../http/auth.js';
 import { HttpError, badRequest, forbidden, notFound } from '../http/errors.js';
 import { iso, isoOrNull } from './mappers.js';
 import { consumeCharge } from './payments/charges.js';
+import { claimOperationRef } from './payments/operationRefs.js';
 import { getSettings } from './settings.js';
 
 /** Se aceptan precios de hasta 30 días atrás para ventas hechas sin internet. */
@@ -208,13 +210,20 @@ export async function createSale(user: AuthUser, input: SaleInput): Promise<Crea
 
     for (const p of input.payments) {
       let method = p.method;
+      const isQr = QR_METHODS.includes(p.method);
       if (p.chargeId && p.confirmation === 'QR') {
-        const { wallet } = await consumeCharge(db, p.chargeId, p.amountCents);
+        // Si el cliente yapeó de más, el QR se cobró por lo que pagó (monto + vuelto).
+        const { wallet } = await consumeCharge(db, p.chargeId, qrAmount(p));
         // El QR es interoperable: si el proveedor sabe con qué app pagó, lo anotamos.
         if (wallet?.toUpperCase().includes('PLIN')) method = 'PLIN';
         else if (wallet?.toUpperCase().includes('YAPE')) method = 'YAPE';
       }
-      const tendered = p.method === 'CASH' ? (p.tenderedCents ?? p.amountCents) : null;
+      let reference = p.reference?.trim() || null;
+      if (isQr && p.confirmation === 'MANUAL' && reference) {
+        reference = await claimOperationRef(db, p.method, reference, { saleId: input.id });
+      }
+      const tendered =
+        p.method === 'CASH' ? (p.tenderedCents ?? p.amountCents) : isQr && p.tenderedCents !== undefined ? p.tenderedCents : null;
       await db.query(
         `INSERT INTO payments (sale_id, method, amount_cents, tendered_cents, change_cents, confirmation, charge_id, reference)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
@@ -224,13 +233,13 @@ export async function createSale(user: AuthUser, input: SaleInput): Promise<Crea
           p.amountCents,
           tendered,
           tendered === null ? 0 : tendered - p.amountCents,
-          QR_METHODS.includes(p.method) ? (p.confirmation ?? null) : null,
+          isQr ? (p.confirmation ?? null) : null,
           p.confirmation === 'QR' ? (p.chargeId ?? null) : null,
-          p.reference ?? null,
+          reference,
         ],
       );
-      if (QR_METHODS.includes(p.method) && p.confirmation === 'MANUAL') {
-        await audit(db, user.id, 'PAGO_DIGITAL_MANUAL', 'sale', input.id, { method: p.method, amountCents: p.amountCents });
+      if (isQr && p.confirmation === 'MANUAL') {
+        await audit(db, user.id, 'PAGO_DIGITAL_MANUAL', 'sale', input.id, { method: p.method, amountCents: p.amountCents, reference });
       }
     }
 
@@ -348,6 +357,7 @@ export function toSale(row: Record<string, any>, items: Record<string, any>[], p
       changeCents: p.change_cents,
       confirmation: p.confirmation,
       chargeId: p.charge_id,
+      reference: p.reference,
     })),
     subtotalCents: row.subtotal_cents,
     discountCents: row.discount_cents,

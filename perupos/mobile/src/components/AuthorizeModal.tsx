@@ -57,7 +57,7 @@ export function AuthorizeModal({
         <View style={styles.sheet}>
           <Text style={styles.title}>Autorización del Administrador</Text>
           <Text style={styles.reason}>{reason}</Text>
-          {!online && <Banner tone="warning" text="Sin internet no se puede autorizar. Cobra sin descuento o sin fiado." />}
+          {!online && <Banner tone="warning" text="No hay señal y el dueño no puede autorizar desde aquí. Cobra sin descuento o sin pasarte del límite de fiado." />}
           <Field label="Usuario del Administrador" value={username} onChangeText={setUsername} autoCapitalize="none" />
           <Text style={styles.pin}>{pin ? '●'.repeat(pin.length) : 'PIN'}</Text>
           {error && <Banner tone="danger" text={error} />}

@@ -32,7 +32,7 @@ export class ApiError extends Error {
 /** No hay internet o el servidor no responde. La app sigue funcionando en modo offline. */
 export class OfflineError extends Error {
   constructor() {
-    super('Sin conexión. Se guardó en el teléfono y se enviará al volver el internet.');
+    super('No hay señal. Queda guardado nomás y se envía solito cuando vuelva.');
   }
 }
 
@@ -163,5 +163,5 @@ export async function logout(): Promise<void> {
 /** Mensaje amable para cualquier error. */
 export function errorMessage(err: unknown): string {
   if (err instanceof ApiError || err instanceof OfflineError) return err.message;
-  return 'Algo salió mal. Intenta de nuevo.';
+  return 'Algo falló. Vuelve a intentar.';
 }

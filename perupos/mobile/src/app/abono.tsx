@@ -43,7 +43,7 @@ export default function Abono() {
 
   const amountCents = parseSoles(amount) ?? 0;
 
-  const save = async (confirmation?: 'QR' | 'MANUAL', chargeId?: string) => {
+  const save = async (confirmation?: 'QR' | 'MANUAL', chargeId?: string, reference?: string) => {
     if (!customer || !user) return;
     setSaving(true);
     setError(null);
@@ -66,6 +66,7 @@ export default function Abono() {
         method,
         confirmation,
         chargeId,
+        reference,
         createdAt: optimistic.createdAt,
       };
       const result = await registerAbono(payload, optimistic);
@@ -79,8 +80,8 @@ export default function Abono() {
 
   const submit = () => {
     if (!customer) return setPicking(true);
-    if (amountCents <= 0) return setError('Escribe cuánto abona.');
-    if (amountCents > customer.balanceCents) return setError(`El abono no puede ser mayor que la deuda (${formatSoles(customer.balanceCents)}).`);
+    if (amountCents <= 0) return setError('Escribe cuánto te abona.');
+    if (amountCents > customer.balanceCents) return setError(`Solo debe ${formatSoles(customer.balanceCents)}: no puede abonar más que eso.`);
     if (method === 'CASH') return void save();
     setShowQr(true);
   };
@@ -118,7 +119,7 @@ export default function Abono() {
           <Text style={[styles.big, { color: colors.danger }]}>{formatSoles(customer.balanceCents)}</Text>
         </View>
       )}
-      <Field label="¿Cuánto abona? (S/)" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0.00" />
+      <Field label="¿Cuánto te abona? (S/)" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0.00" />
       {customer && customer.balanceCents > 0 && (
         <Button label={`Paga todo (${formatSoles(customer.balanceCents)})`} variant="ghost" onPress={() => setAmount((customer.balanceCents / 100).toFixed(2))} />
       )}
@@ -154,9 +155,9 @@ export default function Abono() {
             setShowQr(false);
             void save('QR', chargeId);
           }}
-          onManual={() => {
+          onManual={(reference) => {
             setShowQr(false);
-            void save('MANUAL');
+            void save('MANUAL', undefined, reference);
           }}
           onCancel={() => setShowQr(false)}
         />

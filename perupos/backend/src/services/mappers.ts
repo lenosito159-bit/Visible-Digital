@@ -72,6 +72,8 @@ export function toCustomer(r: Row): Customer {
   return {
     id: r.id,
     name: r.name,
+    trato: r.trato ?? null,
+    reputation: r.reputation ?? null,
     phone: r.phone,
     photoUrl: r.photo_url,
     docType: r.doc_type,

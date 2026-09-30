@@ -51,7 +51,7 @@ export default function MySales() {
           <StatCard label="Yape/Plin/otros" cents={summary.digitalCents} icon="phone-portrait" tone={colors.yape} />
         </View>
       )}
-      {!online && <Banner tone="warning" text="Sin internet: se muestran las ventas guardadas en este teléfono." />}
+      {!online && <Banner tone="warning" text="No hay señal: estas son las ventas guardadas en este celular." />}
       {rows.map(({ sale, status, error }) => (
         <Pressable key={sale.id} onPress={() => router.push(`/receipt/${sale.id}`)} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
           <View style={{ flex: 1 }}>
@@ -62,7 +62,7 @@ export default function MySales() {
               {describePayments(sale.payments)}
               {sale.customerName ? ` · ${sale.customerName}` : ''}
             </Text>
-            {status === 'PENDING' && <Text style={[styles.meta, { color: '#92400E' }]}>Por enviar</Text>}
+            {status === 'PENDING' && <Text style={[styles.meta, { color: '#92400E' }]}>Guardada, falta enviar</Text>}
             {status === 'FAILED' && <Text style={[styles.meta, { color: colors.danger }]}>No se registró: {error}</Text>}
             {sale.status === 'VOIDED' && <Text style={[styles.meta, { color: colors.danger }]}>ANULADA</Text>}
           </View>

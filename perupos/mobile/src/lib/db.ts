@@ -33,6 +33,7 @@ export async function initDb(): Promise<void> {
       pending_cents INTEGER NOT NULL DEFAULT 0, oldest_debt_at TEXT, last_payment_at TEXT,
       active INTEGER NOT NULL, updated_at TEXT NOT NULL
     );
+    CREATE INDEX IF NOT EXISTS products_category ON products (category_id, name);
     CREATE TABLE IF NOT EXISTS local_sales (
       id TEXT PRIMARY KEY NOT NULL, seller_id TEXT NOT NULL, data TEXT NOT NULL,
       status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL
@@ -42,6 +43,10 @@ export async function initDb(): Promise<void> {
       attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT, failed INTEGER NOT NULL DEFAULT 0
     );
   `);
+  // Columnas agregadas después de la primera versión (celulares que ya tenían la app).
+  const cols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(customers)');
+  if (!cols.some((c) => c.name === 'trato')) await db.execAsync('ALTER TABLE customers ADD COLUMN trato TEXT');
+  if (!cols.some((c) => c.name === 'reputation')) await db.execAsync('ALTER TABLE customers ADD COLUMN reputation TEXT');
 }
 
 // ---------- clave-valor ----------
@@ -162,6 +167,8 @@ export async function adjustLocalStock(items: { productId: string; quantity: num
 interface CustomerRow {
   id: string;
   name: string;
+  trato: Customer['trato'];
+  reputation: Customer['reputation'];
   phone: string | null;
   photo_url: string | null;
   doc_type: Customer['docType'];
@@ -179,6 +186,8 @@ interface CustomerRow {
 const toCustomer = (r: CustomerRow): Customer => ({
   id: r.id,
   name: r.name,
+  trato: r.trato ?? null,
+  reputation: r.reputation ?? null,
   phone: r.phone,
   photoUrl: r.photo_url,
   docType: r.doc_type,
@@ -197,14 +206,15 @@ export async function saveCustomers(customers: Customer[]): Promise<void> {
     for (const c of customers) {
       await d.runAsync(
         `INSERT INTO customers (id, name, phone, photo_url, doc_type, doc_number, credit_limit_cents, balance_cents,
-           oldest_debt_at, last_payment_at, active, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           oldest_debt_at, last_payment_at, active, updated_at, trato, reputation)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET name = excluded.name, phone = excluded.phone, photo_url = excluded.photo_url,
+           trato = excluded.trato, reputation = excluded.reputation,
            doc_type = excluded.doc_type, doc_number = excluded.doc_number, credit_limit_cents = excluded.credit_limit_cents,
            balance_cents = excluded.balance_cents, oldest_debt_at = excluded.oldest_debt_at,
            last_payment_at = excluded.last_payment_at, active = excluded.active, updated_at = excluded.updated_at`,
         c.id, c.name, c.phone, c.photoUrl, c.docType, c.docNumber, c.creditLimitCents, c.balanceCents,
-        c.oldestDebtAt, c.lastPaymentAt, c.active ? 1 : 0, c.updatedAt,
+        c.oldestDebtAt, c.lastPaymentAt, c.active ? 1 : 0, c.updatedAt, c.trato, c.reputation,
       );
     }
   });

@@ -1,47 +1,56 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { formatLimaDate, formatSoles, parseSoles } from '@perupos/shared';
+import { Linking, StyleSheet, Text, View } from 'react-native';
+import {
+  PAYMENT_METHOD_LABELS,
+  buildCashCloseText,
+  formatLimaDate,
+  formatSoles,
+  parseSoles,
+  whatsappShareLink,
+  type CashSummary,
+  type PaymentMethod,
+} from '@perupos/shared';
 import { Banner, Button, Chip, Field, Loading, Screen } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useSyncState } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 
-interface CashStatus {
-  openedAt: string;
-  openedBy: string;
-  openingCents: number;
-  cashSalesCents: number;
-  cashAbonosCents: number;
-  inCents: number;
-  outCents: number;
-  expectedCents: number;
-  closedAt: string | null;
-  countedCents: number | null;
-  differenceCents: number | null;
-  movements: { id: string; kind: 'IN' | 'OUT'; amountCents: number; reason: string; createdAt: string }[];
+const METHODS: PaymentMethod[] = ['CASH', 'YAPE', 'PLIN', 'TRANSFER', 'CARD', 'FIADO'];
+
+function Line({ label, cents, strong, negative }: { label: string; cents: number; strong?: boolean; negative?: boolean }) {
+  return (
+    <View style={styles.line}>
+      <Text style={[styles.lineLabel, strong && styles.strong]}>{label}</Text>
+      <Text style={[styles.lineValue, strong && styles.strong]}>
+        {negative ? '−' : ''}
+        {formatSoles(cents)}
+      </Text>
+    </View>
+  );
 }
 
-/** Apertura, retiros y cuadre de caja: para saber si falta o sobra plata. */
+/** Caja del día: apertura, sacar/meter plata y cierre con arqueo y desglose por método. */
 export default function Cash() {
   const { can, settings } = useAuth();
   const { online } = useSyncState();
-  const [cash, setCash] = useState<CashStatus | null | undefined>(undefined);
+  const [cash, setCash] = useState<CashSummary | null | undefined>(undefined);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
-  const [counted, setCounted] = useState('');
   const [kind, setKind] = useState<'OUT' | 'IN'>('OUT');
-  const [closed, setClosed] = useState<CashStatus | null>(null);
+  const [counted, setCounted] = useState('');
+  const [transferred, setTransferred] = useState('');
+  const [closed, setClosed] = useState<CashSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!online) return setCash(undefined);
-    api.get<CashStatus | null>('/cash/current').then(setCash).catch((e) => setError(errorMessage(e)));
+    api.get<CashSummary | null>('/cash/current').then(setCash).catch((e) => setError(errorMessage(e)));
   }, [online]);
   useFocusEffect(load);
 
-  const run = async (fn: () => Promise<CashStatus>) => {
+  const run = async (fn: () => Promise<CashSummary>) => {
     setError(null);
     try {
       const next = await fn();
@@ -54,7 +63,18 @@ export default function Cash() {
     }
   };
 
-  if (!online) return <Screen><Banner tone="warning" text="La caja necesita internet para cuadrarse con las ventas de todos los teléfonos." /></Screen>;
+  const share = (summary: CashSummary) => {
+    if (!settings) return;
+    void Linking.openURL(whatsappShareLink(buildCashCloseText(summary, settings)));
+  };
+
+  if (!online) {
+    return (
+      <Screen>
+        <Banner tone="warning" text="No hay señal. La caja se cuadra con las ventas de todos los celulares, así que necesita internet." />
+      </Screen>
+    );
+  }
   if (cash === undefined) return <Loading />;
 
   if (closed) {
@@ -64,9 +84,13 @@ export default function Cash() {
         <View style={[styles.box, { backgroundColor: diff === 0 ? colors.primarySoft : colors.accentSoft }]}>
           <Text style={styles.label}>Caja cerrada</Text>
           <Text style={styles.big}>{diff === 0 ? 'Cuadra exacto' : diff > 0 ? `Sobran ${formatSoles(diff)}` : `Faltan ${formatSoles(-diff)}`}</Text>
-          <Text style={styles.label}>Debía haber {formatSoles(closed.expectedCents)} · contaste {formatSoles(closed.countedCents ?? 0)}</Text>
+          <Text style={styles.label}>
+            Debía haber {formatSoles(closed.expectedCents)} · contaste {formatSoles(closed.countedCents ?? 0)}
+            {closed.transferredCents ? ` · yapeaste ${formatSoles(closed.transferredCents)}` : ''}
+          </Text>
         </View>
-        <Button label="Listo" onPress={() => { setClosed(null); load(); }} />
+        <Button label="Mandar resumen por WhatsApp" icon="logo-whatsapp" onPress={() => share(closed)} />
+        <Button label="Listo" variant="ghost" onPress={() => { setClosed(null); load(); }} style={{ marginTop: spacing.sm }} />
       </Screen>
     );
   }
@@ -89,27 +113,40 @@ export default function Cash() {
   }
 
   const low = settings && cash.expectedCents < settings.cashLowThresholdCents;
+  const countedCents = parseSoles(counted);
+  const transferredCents = parseSoles(transferred) ?? 0;
+  const preview = countedCents === null ? null : countedCents + transferredCents - cash.expectedCents;
+
   return (
     <Screen>
       <View style={[styles.box, { backgroundColor: low ? colors.accentSoft : colors.primarySoft }]}>
-        <Text style={styles.label}>Debe haber en caja</Text>
+        <Text style={styles.label}>Debe haber en el cajón</Text>
         <Text style={styles.big}>{formatSoles(cash.expectedCents)}</Text>
-        <Text style={styles.small}>Abierta por {cash.openedBy} · {formatLimaDate(cash.openedAt)}</Text>
+        <Text style={styles.small}>Abrió {cash.openedBy} · {formatLimaDate(cash.openedAt)}</Text>
       </View>
-      {low && <Banner tone="warning" text="Queda poco sencillo. Cambia billetes para poder dar vuelto." />}
+      {low && <Banner tone="warning" text="Te queda poco sencillo. Cambia billetes para poder dar vuelto." />}
+
+      <Text style={shared.sectionTitle}>Ventas del turno ({cash.salesCount})</Text>
       <View style={shared.card}>
-        {[
-          ['Apertura', cash.openingCents],
-          ['Ventas en efectivo', cash.cashSalesCents],
-          ['Abonos en efectivo', cash.cashAbonosCents],
-          ['Ingresos', cash.inCents],
-          ['Retiros y pagos', -cash.outCents],
-        ].map(([label, value]) => (
-          <View key={label as string} style={styles.line}>
-            <Text style={styles.lineLabel}>{label}</Text>
-            <Text style={styles.lineValue}>{formatSoles(value as number)}</Text>
-          </View>
+        {METHODS.filter((m) => cash.byMethod[m]).map((m) => (
+          <Line key={m} label={m === 'FIADO' ? 'Fiado (apuntado)' : PAYMENT_METHOD_LABELS[m]} cents={cash.byMethod[m]!} />
         ))}
+        {METHODS.some((m) => cash.abonosByMethod[m]) && <Text style={[shared.label, { marginTop: spacing.sm }]}>Abonos cobrados</Text>}
+        {METHODS.filter((m) => cash.abonosByMethod[m]).map((m) => (
+          <Line key={`a-${m}`} label={PAYMENT_METHOD_LABELS[m]} cents={cash.abonosByMethod[m]!} />
+        ))}
+        {cash.salesCount === 0 && <Text style={styles.small}>Todavía no hay ventas en este turno.</Text>}
+      </View>
+
+      <Text style={[shared.sectionTitle, { marginTop: spacing.lg }]}>Efectivo en el cajón</Text>
+      <View style={shared.card}>
+        <Line label="Apertura" cents={cash.openingCents} />
+        <Line label="Ventas en efectivo" cents={cash.cashSalesCents} />
+        {cash.digitalChangeCents > 0 && <Line label="Vuelto de yapeos de más" cents={cash.digitalChangeCents} negative />}
+        {cash.cashAbonosCents > 0 && <Line label="Abonos en efectivo" cents={cash.cashAbonosCents} />}
+        {cash.inCents > 0 && <Line label="Metiste" cents={cash.inCents} />}
+        {cash.outCents > 0 && <Line label="Sacaste (pagos, retiros)" cents={cash.outCents} negative />}
+        <Line label="Debe haber" cents={cash.expectedCents} strong />
       </View>
 
       {can('cash.operate') && (
@@ -120,7 +157,7 @@ export default function Cash() {
             <Chip label="Meto plata" icon="arrow-down" selected={kind === 'IN'} onPress={() => setKind('IN')} />
           </View>
           <Field label="Monto (S/)" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" />
-          <Field label="Motivo" value={reason} onChangeText={setReason} placeholder="Ej. pago al proveedor de gaseosas" />
+          <Field label="¿Para qué?" value={reason} onChangeText={setReason} placeholder="Ej. le pagué al de las gaseosas" />
           <Button
             label="Anotar"
             variant="secondary"
@@ -130,18 +167,38 @@ export default function Cash() {
               if (next) setCash(next);
             }}
           />
-          <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Cerrar caja</Text>
-          <Field label="¿Cuánto contaste? (S/)" value={counted} onChangeText={setCounted} keyboardType="decimal-pad" />
+
+          <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Cierre del día</Text>
+          <Field label="¿Cuánto contaste en el cajón? (S/)" value={counted} onChangeText={setCounted} keyboardType="decimal-pad" />
+          <Field
+            label="¿Le yapeaste algo al administrador para cuadrar? (S/)"
+            value={transferred}
+            onChangeText={setTransferred}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+          />
+          {preview !== null && (
+            <Banner
+              tone={preview === 0 ? 'success' : 'warning'}
+              text={preview === 0 ? 'Cuadra exacto.' : preview > 0 ? `Sobran ${formatSoles(preview)}.` : `Faltan ${formatSoles(-preview)}.`}
+            />
+          )}
           <Button
-            label="Cerrar y cuadrar"
+            label="Cerrar caja"
             variant="accent"
             icon="lock-closed"
             big
+            disabled={countedCents === null}
             onPress={async () => {
-              const result = await run(() => api.post('/cash/close', { countedCents: parseSoles(counted) ?? 0 }));
-              if (result) setClosed(result);
+              const result = await run(() => api.post('/cash/close', { countedCents: countedCents ?? 0, transferredCents }));
+              if (result) {
+                setCounted('');
+                setTransferred('');
+                setClosed(result);
+              }
             }}
           />
+          <Button label="Mandar cómo va la caja por WhatsApp" variant="ghost" icon="logo-whatsapp" onPress={() => share(cash)} style={{ marginTop: spacing.sm }} />
         </>
       )}
       {error && <Banner tone="danger" text={error} />}
@@ -157,5 +214,6 @@ const styles = StyleSheet.create({
   line: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   lineLabel: { fontSize: font.body, color: colors.textMuted },
   lineValue: { fontSize: font.body, fontWeight: '800', color: colors.text },
+  strong: { color: colors.text, fontWeight: '900', fontSize: font.large },
   row: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
 });

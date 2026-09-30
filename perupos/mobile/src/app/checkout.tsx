@@ -18,7 +18,9 @@ import {
   formatSoles,
   lineTotal,
   parseSoles,
+  qrAmount,
   quickCashOptions,
+  rebalanceAmounts,
   validateBuyer,
   type Customer,
   type DocType,
@@ -43,8 +45,11 @@ interface Line {
   method: PaymentMethod;
   amount: string;
   tendered: string;
+  /** Solo Yape/Plin: el cliente pagó más y se le da vuelto en efectivo. */
+  overpay?: boolean;
   confirmation?: 'QR' | 'MANUAL';
   chargeId?: string;
+  reference?: string;
 }
 
 const METHOD_ICONS: Record<PaymentMethod, IconName> = {
@@ -66,6 +71,21 @@ const METHOD_COLORS: Record<PaymentMethod, string> = {
 
 const toText = (cents: number) => (cents / 100).toFixed(2);
 const cents = (text: string) => parseSoles(text) ?? 0;
+
+function toPayments(lines: Line[]): PaymentInput[] {
+  return lines.map((l) => {
+    const tendered =
+      l.tendered && (l.method === 'CASH' || (QR_METHODS.includes(l.method) && l.overpay)) ? cents(l.tendered) : undefined;
+    return {
+      method: l.method,
+      amountCents: cents(l.amount),
+      tenderedCents: tendered,
+      confirmation: l.confirmation,
+      chargeId: l.chargeId,
+      reference: l.reference,
+    };
+  });
+}
 
 /** Pantalla de cobro con pago mixto: efectivo + Yape/Plin + fiado en una sola venta. */
 export default function Checkout() {
@@ -109,13 +129,7 @@ export default function Checkout() {
     setLines((ls) => (ls.length === 1 ? [{ ...ls[0]!, amount: toText(total) }] : ls));
   }, [total]);
 
-  const payments: PaymentInput[] = lines.map((l) => ({
-    method: l.method,
-    amountCents: cents(l.amount),
-    tenderedCents: l.method === 'CASH' && l.tendered ? cents(l.tendered) : undefined,
-    confirmation: l.confirmation,
-    chargeId: l.chargeId,
-  }));
+  const payments = toPayments(lines);
   const check = checkPayments(total, payments, { hasCustomer: !!customer, final: false });
   const fiado = payments.find((p) => p.method === 'FIADO');
   const credit = customer && fiado ? checkCredit(customer.balanceCents, customer.creditLimitCents, fiado.amountCents) : null;
@@ -123,11 +137,16 @@ export default function Checkout() {
 
   const updateLine = (key: string, patch: Partial<Line>) => {
     setLines((ls) => {
-      let next = ls.map((l) => (l.key === key ? { ...l, ...patch, ...(patch.method ? { confirmation: undefined, chargeId: undefined } : {}) } : l));
-      // Con dos métodos, el otro se ajusta solo: "30 en efectivo y el resto por Yape".
-      if (patch.amount !== undefined && next.length === 2) {
-        const rest = total - cents(patch.amount);
-        next = next.map((l) => (l.key === key ? l : { ...l, amount: toText(Math.max(0, rest)), confirmation: undefined, chargeId: undefined }));
+      const reset = { confirmation: undefined, chargeId: undefined, reference: undefined };
+      let next = ls.map((l) => (l.key === key ? { ...l, ...patch, ...(patch.method || patch.amount !== undefined || patch.tendered !== undefined || patch.overpay !== undefined ? reset : {}) } : l));
+      // "20 en efectivo y el resto yapéame": el resto va al último método agregado.
+      if (patch.amount !== undefined) {
+        const index = next.findIndex((l) => l.key === key);
+        const amounts = rebalanceAmounts(total, next.map((l) => cents(l.amount)), index);
+        // Un Yape/Plin ya cobrado no se toca.
+        next = next.map((l, i) =>
+          i === index || l.confirmation || amounts[i] === cents(l.amount) ? l : { ...l, amount: toText(amounts[i]!), ...reset },
+        );
       }
       return next;
     });
@@ -146,13 +165,7 @@ export default function Checkout() {
 
   const pay = async (current: Line[] = lines) => {
     setError(null);
-    const currentPayments: PaymentInput[] = current.map((l) => ({
-      method: l.method,
-      amountCents: cents(l.amount),
-      tenderedCents: l.method === 'CASH' && l.tendered ? cents(l.tendered) : undefined,
-      confirmation: l.confirmation,
-      chargeId: l.chargeId,
-    }));
+    const currentPayments = toPayments(current);
     const pre = checkPayments(total, currentPayments, { hasCustomer: !!customer, final: false });
     if (!pre.ok) return setError(pre.errors[0] ?? 'Revisa los montos.');
     const buyerError = validateBuyer(docType, total, buyer);
@@ -290,18 +303,44 @@ export default function Checkout() {
             )}
 
             {QR_METHODS.includes(line.method) && (
-              <Banner
-                tone={line.confirmation ? 'success' : 'info'}
-                text={
-                  line.confirmation === 'QR'
-                    ? 'Pago confirmado por QR.'
-                    : line.confirmation === 'MANUAL'
-                      ? 'Pago confirmado a mano (se revisará).'
-                      : online
-                        ? 'Al cobrar se muestra un QR que sirve para Yape y Plin.'
-                        : 'Sin internet: confirma viendo la notificación de Yape/Plin.'
-                }
-              />
+              <View style={{ gap: spacing.sm }}>
+                <Chip
+                  label={line.method === 'YAPE' ? 'Me yapeó más: dar vuelto' : 'Me plineó más: dar vuelto'}
+                  icon="swap-vertical"
+                  selected={!!line.overpay}
+                  onPress={() => updateLine(line.key, { overpay: !line.overpay, tendered: '' })}
+                />
+                {line.overpay && (
+                  <>
+                    <TextInput
+                      value={line.tendered}
+                      onChangeText={(t) => updateLine(line.key, { tendered: t })}
+                      keyboardType="decimal-pad"
+                      placeholder={line.method === 'YAPE' ? '¿Cuánto te yapeó?' : '¿Cuánto te plineó?'}
+                      placeholderTextColor={colors.textMuted}
+                      style={shared.input}
+                    />
+                    {tendered > amount && (
+                      <View style={styles.change}>
+                        <Text style={styles.changeLabel}>VUELTO EN EFECTIVO</Text>
+                        <Text style={styles.changeValue}>{formatSoles(tendered - amount)}</Text>
+                      </View>
+                    )}
+                  </>
+                )}
+                <Banner
+                  tone={line.confirmation ? 'success' : 'info'}
+                  text={
+                    line.confirmation === 'QR'
+                      ? 'Ya pagó por QR.'
+                      : line.confirmation === 'MANUAL'
+                        ? `Ya te llegó (confirmado a mano${line.reference ? `, operación ${line.reference}` : ''}).`
+                        : online
+                          ? `Al cobrar sale un QR por ${formatSoles(line.overpay && tendered > amount ? tendered : amount)} que sirve para Yape y Plin.`
+                          : 'No hay señal: que te yapee a tu QR del mostrador y revisa que te llegue.'
+                  }
+                />
+              </View>
             )}
 
             {line.method === 'FIADO' && (
@@ -403,10 +442,10 @@ export default function Checkout() {
       {qrLine && (
         <QrPaymentModal
           visible
-          amountCents={cents(qrLine.amount)}
+          amountCents={qrAmount(toPayments([qrLine])[0]!)}
           reference={saleId}
           onPaid={(chargeId) => onQrDone({ confirmation: 'QR', chargeId })}
-          onManual={() => onQrDone({ confirmation: 'MANUAL' })}
+          onManual={(reference) => onQrDone({ confirmation: 'MANUAL', reference })}
           onCancel={() => setQrLine(null)}
         />
       )}

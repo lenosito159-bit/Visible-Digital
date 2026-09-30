@@ -24,7 +24,7 @@ export function parse<T extends z.ZodType>(schema: T, data: unknown): z.infer<T>
   if (!result.success) {
     const first = result.error.issues[0];
     const where = first?.path.length ? ` (${first.path.join('.')})` : '';
-    throw badRequest(`Datos inválidos${where}: ${first?.message ?? 'revisa el formulario'}`, 'DATOS_INVALIDOS', result.error.issues);
+    throw badRequest(`Revisa los datos${where}: ${first?.message ?? 'falta completar algo'}`, 'DATOS_INVALIDOS', result.error.issues);
   }
   return result.data;
 }
@@ -48,5 +48,5 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
   console.error(err);
-  res.status(500).json({ error: 'Ocurrió un error inesperado. Intenta de nuevo.', code: 'ERROR_INTERNO' });
+  res.status(500).json({ error: 'Algo falló en el servidor. Vuelve a intentar en un ratito.', code: 'ERROR_INTERNO' });
 };

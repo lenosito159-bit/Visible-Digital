@@ -33,8 +33,8 @@ export async function createCustomer(user: AuthUser, body: CustomerInput) {
   const settings = await getSettings(pool);
   const row = await one(
     pool,
-    `INSERT INTO customers (id, name, phone, photo_url, doc_type, doc_number, credit_limit_cents, created_by)
-     VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+    `INSERT INTO customers (id, name, phone, photo_url, doc_type, doc_number, credit_limit_cents, created_by, trato, reputation)
+     VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
     [
       body.id ?? null,
       body.name,
@@ -44,6 +44,8 @@ export async function createCustomer(user: AuthUser, body: CustomerInput) {
       body.docNumber ?? null,
       body.creditLimitCents ?? settings.defaultCreditLimitCents,
       user.id,
+      body.trato ?? null,
+      body.reputation ?? null,
     ],
   );
   return (await getCustomer(pool, row!.id))!;
@@ -85,7 +87,7 @@ customersRouter.patch('/customers/:id', requirePermission('customers.create'), a
   const user = currentUser(req);
   const body = parse(customerInputSchema.partial().extend({ active: z.boolean().optional() }), req.body);
   if (body.creditLimitCents !== undefined && !can(user.role, 'customers.editCreditLimit')) {
-    throw forbidden('Solo el Administrador puede cambiar el límite de crédito.');
+    throw forbidden('Solo el Administrador puede cambiar hasta cuánto se le fía.');
   }
   if (body.active !== undefined && !can(user.role, 'customers.editCreditLimit')) throw forbidden();
   validateCustomer({ docType: 'NONE', name: 'x', ...body } as CustomerInput);
@@ -94,7 +96,9 @@ customersRouter.patch('/customers/:id', requirePermission('customers.create'), a
   await pool.query(
     `UPDATE customers SET name = COALESCE($2, name), phone = COALESCE($3, phone), photo_url = COALESCE($4, photo_url),
             doc_type = COALESCE($5, doc_type), doc_number = COALESCE($6, doc_number),
-            credit_limit_cents = COALESCE($7, credit_limit_cents), active = COALESCE($8, active)
+            credit_limit_cents = COALESCE($7, credit_limit_cents), active = COALESCE($8, active),
+            trato = CASE WHEN $9::boolean THEN $10 ELSE trato END,
+            reputation = CASE WHEN $11::boolean THEN $12 ELSE reputation END
       WHERE id = $1`,
     [
       req.params.id,
@@ -105,6 +109,10 @@ customersRouter.patch('/customers/:id', requirePermission('customers.create'), a
       body.docNumber ?? null,
       body.creditLimitCents ?? null,
       body.active ?? null,
+      body.trato !== undefined,
+      body.trato ?? null,
+      body.reputation !== undefined,
+      body.reputation ?? null,
     ],
   );
   if (body.creditLimitCents !== undefined && body.creditLimitCents !== before.credit_limit_cents) {

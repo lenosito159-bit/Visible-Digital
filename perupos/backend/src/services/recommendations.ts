@@ -1,4 +1,4 @@
-import { formatSoles, type Recommendation } from '@perupos/shared';
+import { formatSoles, type Payday, type Recommendation } from '@perupos/shared';
 import { DAY_NAMES, type Heatmap, type ProductStat } from './reports.js';
 
 export interface RecommendationInput {
@@ -9,6 +9,9 @@ export interface RecommendationInput {
   cashInDrawerCents: number | null;
   cashLowThresholdCents: number;
   staleDays: number;
+  /** Si hoy es quincena o fin de mes, y cuántos clientes deben en total. */
+  payday?: Payday;
+  debtors?: { count: number; totalCents: number };
 }
 
 /** Días de venta que debería cubrir el stock de un producto estrella. */
@@ -53,7 +56,17 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
     });
   });
 
-  // 2. Cobrar deudas vencidas, empezando por la más grande.
+  // 2. Quincena y fin de mes: es cuando la gente tiene plata para pagar.
+  if (input.payday && input.debtors && input.debtors.count > 0) {
+    recs.push({
+      kind: 'COBRAR',
+      message: `${input.payday.label} ${input.debtors.count} ${input.debtors.count === 1 ? 'cliente te debe' : 'clientes te deben'} ${formatSoles(input.debtors.totalCents)}. Manda los recordatorios por WhatsApp.`,
+      entityId: null,
+      targetRoles: ['ADMIN', 'VENDEDOR'],
+    });
+  }
+
+  // 3. Cobrar deudas vencidas, empezando por la más grande.
   [...input.overdue]
     .sort((a, b) => b.balanceCents - a.balanceCents)
     .slice(0, 3)
@@ -66,7 +79,7 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
       });
     });
 
-  // 3. Promoción en el horario más flojo.
+  // 4. Promoción en el horario más flojo.
   const slots: { day: number; part: string; total: number }[] = [];
   input.heatmap.matrix.forEach((hours, day) => {
     for (const part of PARTS_OF_DAY) {
@@ -88,7 +101,7 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
     }
   }
 
-  // 4. Plata inmovilizada en productos que no salen.
+  // 5. Plata inmovilizada en productos que no salen.
   input.slow
     .filter((p) => p.unitsSold === 0 && (p.daysSinceLastSale ?? 0) >= input.staleDays && p.stockValueCents >= 1000)
     .slice(0, 2)
@@ -101,7 +114,7 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
       });
     });
 
-  // 5. Sencillo para dar vuelto.
+  // 6. Sencillo para dar vuelto.
   if (input.cashInDrawerCents !== null && input.cashInDrawerCents < input.cashLowThresholdCents) {
     recs.push({
       kind: 'CAJA',

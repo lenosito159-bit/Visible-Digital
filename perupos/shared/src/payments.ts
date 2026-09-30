@@ -9,8 +9,10 @@ export interface PaymentCheck {
   assignedCents: Cents;
   /** Lo que falta asignar (negativo si se asignó de más). */
   remainingCents: Cents;
-  /** Vuelto a entregar: lo que el cliente dio en efectivo por encima de su parte. */
+  /** Vuelto total a entregar en efectivo. */
   changeCents: Cents;
+  /** Parte del vuelto que sale de un Yape/Plin pagado de más ("te yapeo 40, dame el vuelto"). */
+  digitalChangeCents: Cents;
   /** Parte que se cobra con QR (Yape/Plin) y aún necesita confirmación. */
   qrPendingCents: Cents;
 }
@@ -34,6 +36,7 @@ export function checkPayments(
   const errors: string[] = [];
   let assigned = 0;
   let change = 0;
+  let digitalChange = 0;
   let qrPending = 0;
   const seen = new Set<PaymentMethod>();
 
@@ -57,8 +60,15 @@ export function checkPayments(
       } else {
         change += tendered - p.amountCents;
       }
+    } else if (QR_METHODS.includes(p.method) && p.tenderedCents !== undefined && p.tenderedCents !== p.amountCents) {
+      // El cliente yapeó más de lo que le tocaba: el vuelto se le da en efectivo.
+      if (p.tenderedCents < p.amountCents) {
+        errors.push(`Lo que te ${label === 'Yape' ? 'yapeó' : 'pagó por Plin'} (${formatSoles(p.tenderedCents)}) no alcanza para ${formatSoles(p.amountCents)}.`);
+      } else {
+        digitalChange += p.tenderedCents - p.amountCents;
+      }
     } else if (p.tenderedCents !== undefined && p.tenderedCents !== p.amountCents) {
-      errors.push(`Solo el efectivo puede dar vuelto.`);
+      errors.push(`${label} no da vuelto: pon el monto exacto.`);
     }
 
     if (p.method === 'FIADO' && !rules.hasCustomer) {
@@ -68,7 +78,7 @@ export function checkPayments(
     if (QR_METHODS.includes(p.method)) {
       const confirmed = p.confirmation === 'MANUAL' || (p.confirmation === 'QR' && !!p.chargeId);
       if (!confirmed) {
-        qrPending += p.amountCents;
+        qrPending += qrAmount(p);
         if (rules.final) errors.push(`Falta confirmar el pago por ${label}.`);
       }
     }
@@ -77,9 +87,7 @@ export function checkPayments(
   const remaining = totalCents - assigned;
   if (remaining > 0) errors.push(`Faltan ${formatSoles(remaining)} por cobrar.`);
   if (remaining < 0) {
-    errors.push(
-      `Se asignó ${formatSoles(-remaining)} de más. Si el cliente dio más efectivo, ponlo en "Recibido".`,
-    );
+    errors.push(`Te sobran ${formatSoles(-remaining)}: revisa los montos. Si te dieron más plata, ponlo en "¿Con cuánto paga?".`);
   }
 
   return {
@@ -87,9 +95,31 @@ export function checkPayments(
     errors,
     assignedCents: assigned,
     remainingCents: remaining,
-    changeCents: change,
+    changeCents: change + digitalChange,
+    digitalChangeCents: digitalChange,
     qrPendingCents: qrPending,
   };
+}
+
+/** Monto que se cobra por QR en una línea de Yape/Plin (incluye lo pagado de más). */
+export function qrAmount(p: Pick<PaymentInput, 'amountCents' | 'tenderedCents'>): Cents {
+  return p.tenderedCents !== undefined && p.tenderedCents > p.amountCents ? p.tenderedCents : p.amountCents;
+}
+
+/**
+ * Reparte el "resto" cuando el vendedor cambia un monto:
+ * - Con 2 métodos, el otro se ajusta ("20 en efectivo y el resto yapéame").
+ * - Con 3 o más, se ajusta el último agregado ("5 con Yape y el resto apúntamelo").
+ * Nunca deja montos negativos.
+ */
+export function rebalanceAmounts(totalCents: Cents, amounts: Cents[], editedIndex: number): Cents[] {
+  const next = [...amounts];
+  if (next.length < 2) return next;
+  const target = next.length === 2 ? 1 - editedIndex : next.length - 1;
+  if (target === editedIndex) return next;
+  const others = next.reduce((sum, a, i) => (i === target ? sum : sum + Math.max(0, a)), 0);
+  next[target] = Math.max(0, totalCents - others);
+  return next;
 }
 
 /**

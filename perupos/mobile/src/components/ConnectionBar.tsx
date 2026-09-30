@@ -10,12 +10,12 @@ import { colors, font } from '@/theme';
 export function ConnectionBar() {
   const s = useSyncState();
   const pendingText = s.pending > 0 ? ` · ${s.pending} por enviar` : '';
-  const failedText = s.failed > 0 ? ` · ${s.failed} con problema` : '';
+  const failedText = s.failed > 0 ? ` · ${s.failed} no se pudieron enviar` : '';
   const offline = !s.online;
   const label = offline
-    ? `Sin internet — la app sigue funcionando${pendingText}`
+    ? `No hay señal — sigue vendiendo nomás${pendingText}`
     : s.syncing
-      ? 'Sincronizando…'
+      ? 'Enviando…'
       : `En línea${pendingText}${failedText}`;
   const bg = offline ? colors.accent : s.failed > 0 ? colors.dangerSoft : colors.primarySoft;
   const fg = offline ? colors.text : s.failed > 0 ? colors.danger : colors.primaryDark;

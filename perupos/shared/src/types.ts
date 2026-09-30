@@ -108,9 +108,22 @@ export interface Product {
   updatedAt: string;
 }
 
+/** Cómo le dice el tendero al cliente: "Don Juan", "Doña Rosa" o solo el nombre. */
+export type CustomerTreatment = 'DON' | 'DONA' | null;
+
+/** Marca que pone el tendero: "siempre paga" o "le cuesta pagar". */
+export type CustomerReputation = 'CUMPLIDO' | 'MOROSO' | null;
+
+export const REPUTATION_LABELS: Record<Exclude<CustomerReputation, null>, string> = {
+  CUMPLIDO: 'Siempre paga',
+  MOROSO: 'Le cuesta pagar',
+};
+
 export interface Customer {
   id: string;
   name: string;
+  trato: CustomerTreatment;
+  reputation: CustomerReputation;
   phone: string | null;
   photoUrl: string | null;
   docType: IdentityDocType;
@@ -140,6 +153,7 @@ export interface PaymentInput {
   confirmation?: DigitalConfirmation;
   /** Solo Yape/Plin por QR: id del cobro TAYPI ya pagado. */
   chargeId?: string;
+  /** N° de operación de Yape/Plin (confirmación manual): no se puede usar dos veces. */
   reference?: string;
 }
 
@@ -176,6 +190,7 @@ export interface Payment {
   changeCents: Cents;
   confirmation: DigitalConfirmation | null;
   chargeId: string | null;
+  reference: string | null;
 }
 
 export interface Sale {
@@ -228,6 +243,7 @@ export interface AbonoInput {
   method: Exclude<PaymentMethod, 'FIADO'>;
   confirmation?: DigitalConfirmation;
   chargeId?: string;
+  reference?: string;
   createdAt: string;
 }
 
@@ -320,4 +336,31 @@ export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
   user: User;
+}
+
+/** Resumen de la caja del turno (apertura hasta ahora o hasta el cierre). */
+export interface CashSummary {
+  sessionId: string;
+  openedAt: string;
+  openedBy: string;
+  openingCents: Cents;
+  salesCount: number;
+  /** Ventas del turno por método de pago (lo asignado a cada uno). */
+  byMethod: Partial<Record<PaymentMethod, Cents>>;
+  /** Abonos cobrados en el turno por método. */
+  abonosByMethod: Partial<Record<PaymentMethod, Cents>>;
+  cashSalesCents: Cents;
+  /** Vuelto que salió del cajón porque el cliente yapeó de más. */
+  digitalChangeCents: Cents;
+  cashAbonosCents: Cents;
+  inCents: Cents;
+  outCents: Cents;
+  /** Lo que debería haber en el cajón. */
+  expectedCents: Cents;
+  closedAt: string | null;
+  countedCents: Cents | null;
+  /** Lo que el vendedor le yapeó al administrador para cuadrar. */
+  transferredCents: Cents;
+  differenceCents: Cents | null;
+  movements: { id: string; kind: 'IN' | 'OUT'; amountCents: Cents; reason: string; createdAt: string }[];
 }

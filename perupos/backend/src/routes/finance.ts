@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { ROLES, can, type Role } from '@perupos/shared';
+import { ROLES, can, paydayInfo, type Role } from '@perupos/shared';
 import { many, one, pool } from '../db/pool.js';
 import { currentUser, requireAuth, requirePermission } from '../http/auth.js';
 import { notFound, parse } from '../http/errors.js';
 import { cents } from '../http/schemas.js';
 import { evaluateAlerts } from '../services/alerts.js';
-import { addCashMovement, closeCash, currentCash, openCash } from '../services/cash.js';
+import { addCashMovement, closeCash, currentCash, openCash, recentClosures } from '../services/cash.js';
 import { listCustomers } from '../services/credit.js';
 import { iso, toAlert } from '../services/mappers.js';
 import { pushToRoles } from '../services/push.js';
@@ -42,8 +42,15 @@ financeRouter.post('/cash/movements', requirePermission('cash.operate'), async (
 });
 
 financeRouter.post('/cash/close', requirePermission('cash.operate'), async (req, res) => {
-  const body = parse(z.object({ countedCents: cents, notes: z.string().max(200).nullable().optional() }), req.body);
-  res.json(await closeCash(currentUser(req), body.countedCents, body.notes ?? null));
+  const body = parse(
+    z.object({ countedCents: cents, transferredCents: cents.default(0), notes: z.string().max(200).nullable().optional() }),
+    req.body,
+  );
+  res.json(await closeCash(currentUser(req), body.countedCents, body.transferredCents, body.notes ?? null));
+});
+
+financeRouter.get('/cash/closures', requirePermission('reports.financial'), async (_req, res) => {
+  res.json(await recentClosures(pool));
 });
 
 // ---- Reportes ----
@@ -93,10 +100,11 @@ financeRouter.get('/reports/sire', requirePermission('reports.sire'), async (req
 
 async function recommendations() {
   const settings = await getSettings(pool);
-  const [top, slow, overdueCustomers, map, cash] = await Promise.all([
+  const [top, slow, overdueCustomers, debtors, map, cash] = await Promise.all([
     topProducts(pool),
     slowProducts(pool),
     listCustomers(pool, { overdueDays: settings.overdueDays, sort: 'amount' }),
+    listCustomers(pool, { withDebt: true }),
     heatmap(pool),
     currentCash(pool),
   ]);
@@ -121,6 +129,8 @@ async function recommendations() {
       cashInDrawerCents: cash?.expectedCents ?? null,
       cashLowThresholdCents: settings.cashLowThresholdCents,
       staleDays: settings.staleProductDays,
+      payday: paydayInfo(),
+      debtors: { count: debtors.length, totalCents: debtors.reduce((a, c) => a + c.balanceCents, 0) },
     }),
   };
 }

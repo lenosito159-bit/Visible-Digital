@@ -2,9 +2,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { daysBetween, debtReminderMessage, formatSoles, whatsappLink, type Customer } from '@perupos/shared';
+import { daysBetween, debtReminderMessage, formatSoles, paydayInfo, whatsappLink, type Customer } from '@perupos/shared';
 import { CustomerRow } from '@/components/CustomerPicker';
-import { Chip, Empty, Screen } from '@/components/ui';
+import { Banner, Chip, Empty, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import * as db from '@/lib/db';
 import { colors, font, spacing } from '@/theme';
@@ -22,6 +22,7 @@ export default function Debts() {
   const [sort, setSort] = useState<'amount' | 'age'>('amount');
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const overdueDays = settings?.overdueDays ?? 30;
+  const payday = paydayInfo();
 
   useFocusEffect(
     useCallback(() => {
@@ -34,12 +35,14 @@ export default function Debts() {
     .filter((r) => !onlyOverdue || r.days > overdueDays)
     .sort((a, b) => (sort === 'amount' ? b.c.balanceCents - a.c.balanceCents : b.days - a.days));
 
-  const remind = (c: Customer, days: number) => {
+  const remind = (c: Customer) => {
     const text = debtReminderMessage({
       customerName: c.name,
+      trato: c.trato,
       balanceCents: c.balanceCents,
-      businessName: settings?.nombreComercial || settings?.razonSocial || 'tu bodega',
-      days,
+      businessName: settings?.nombreComercial || settings?.razonSocial || 'la tienda',
+      since: c.oldestDebtAt,
+      template: payday?.kind ?? 'AMABLE',
     });
     const link = c.phone ? whatsappLink(c.phone, text) : null;
     if (link) void Linking.openURL(link);
@@ -49,6 +52,7 @@ export default function Debts() {
 
   return (
     <Screen>
+      {payday && <Banner tone="success" icon="calendar" text={`${payday.label} El recordatorio sale con el mensaje de ${payday.kind === 'QUINCENA' ? 'quincena' : 'fin de mes'}.`} />}
       <Text style={styles.total}>
         {rows.length} {rows.length === 1 ? 'cliente debe' : 'clientes deben'} {formatSoles(total)}
       </Text>
@@ -65,7 +69,7 @@ export default function Debts() {
               onPress={() => router.push(`/customers/${c.id}`)}
               right={
                 c.phone ? (
-                  <Pressable accessibilityLabel={`Recordar a ${c.name} por WhatsApp`} onPress={() => remind(c, days)} style={styles.wa}>
+                  <Pressable accessibilityLabel={`Recordar a ${c.name} por WhatsApp`} onPress={() => remind(c)} style={styles.wa}>
                     <Ionicons name="logo-whatsapp" size={28} color="#FFFFFF" />
                   </Pressable>
                 ) : null

@@ -147,17 +147,17 @@ export async function seed({ demo = false, log = console.log }: { demo?: boolean
 
     // Clientes con su saldo pasado del cuaderno de fiados.
     const customers = [
-      { name: 'Juan Pérez', phone: '987111222', limit: 10000, debt: 4500, daysAgo: 40 },
-      { name: 'María López', phone: '986333444', limit: 5000, debt: 4600, daysAgo: 6 },
-      { name: 'Señora Carmen (la del 3er piso)', phone: null, limit: 8000, debt: 2350, daysAgo: 12 },
-      { name: 'Pedro Castillo Ramos', phone: '985555666', limit: 5000, debt: 0, daysAgo: 0 },
+      { name: 'Juan Pérez', trato: 'DON', phone: '987111222', limit: 10000, debt: 4500, daysAgo: 40 },
+      { name: 'María López', trato: 'DONA', phone: '986333444', limit: 5000, debt: 4600, daysAgo: 6 },
+      { name: 'Señora Carmen (la del 3er piso)', trato: null, phone: null, limit: 8000, debt: 2350, daysAgo: 12 },
+      { name: 'Pedro Castillo Ramos', trato: 'DON', phone: '985555666', limit: 5000, debt: 0, daysAgo: 0 },
     ];
     for (const c of customers) {
       const row = await one<{ id: string }>(
         pool,
-        `INSERT INTO customers (name, phone, credit_limit_cents, created_by, created_at)
-         VALUES ($1, $2, $3, $4, now() - interval '90 days') RETURNING id`,
-        [c.name, c.phone, c.limit, admin.id],
+        `INSERT INTO customers (name, trato, phone, credit_limit_cents, created_by, created_at)
+         VALUES ($1, $2, $3, $4, $5, now() - interval '90 days') RETURNING id`,
+        [c.name, c.trato, c.phone, c.limit, admin.id],
       );
       if (c.debt > 0) {
         await pool.query(

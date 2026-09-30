@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { formatSoles, type QrCharge } from '@perupos/shared';
 import { api, errorMessage, OfflineError } from '@/lib/api';
@@ -27,7 +27,7 @@ export function QrPaymentModal({
   amountCents: number;
   reference: string;
   onPaid: (chargeId: string, wallet: string | null) => void;
-  onManual: () => void;
+  onManual: (reference?: string) => void;
   onCancel: () => void;
 }) {
   const { online } = useSyncState();
@@ -35,6 +35,8 @@ export function QrPaymentModal({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [manualOpen, setManualOpen] = useState(false);
+  const [opRef, setOpRef] = useState('');
   const done = useRef(false);
 
   const create = useCallback(async () => {
@@ -43,7 +45,7 @@ export function QrPaymentModal({
     try {
       setCharge(await api.post<QrCharge>('/payments/qr', { amountCents, reference }));
     } catch (err) {
-      setError(err instanceof OfflineError ? 'Sin internet no se puede generar el QR.' : errorMessage(err));
+      setError(err instanceof OfflineError ? 'No hay señal y no sale el QR.' : errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -53,6 +55,8 @@ export function QrPaymentModal({
     if (!visible) {
       setCharge(null);
       setError(null);
+      setManualOpen(false);
+      setOpRef('');
       done.current = false;
       return;
     }
@@ -94,26 +98,38 @@ export function QrPaymentModal({
     onCancel();
   };
 
-  const manual = () =>
-    Alert.alert(
-      'Confirmar pago manual',
-      `¿Viste en tu Yape o Plin el pago de ${formatSoles(amountCents)}? Queda anotado para revisarlo después.`,
-      [
-        { text: 'No', style: 'cancel' },
-        { text: 'Sí, ya pagó', onPress: onManual },
-      ],
-    );
+  // Confirmación a mano: el vendedor mira la notificación en su celular.
+  const manual = () => setManualOpen(true);
+  const manualPanel = (
+    <View style={styles.manual}>
+      <Text style={styles.manualTitle}>¿Ya te llegó el {formatSoles(amountCents)}?</Text>
+      <Text style={styles.hint}>Mira la notificación de tu Yape o Plin. Escribe el N° de operación para que nadie cobre dos veces con la misma captura.</Text>
+      <TextInput
+        value={opRef}
+        onChangeText={setOpRef}
+        placeholder="N° de operación (opcional)"
+        placeholderTextColor={colors.textMuted}
+        keyboardType="number-pad"
+        style={styles.input}
+        accessibilityLabel="Número de operación"
+      />
+      <Button label="Sí, ya me llegó" icon="checkmark-done" big onPress={() => onManual(opRef.trim() || undefined)} />
+      <Button label="Todavía no" variant="ghost" onPress={() => setManualOpen(false)} />
+    </View>
+  );
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={cancel}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Paga con Yape o Plin</Text>
+        <Text style={styles.title}>Yapea o plinea aquí</Text>
         <Text style={styles.amount}>{formatSoles(amountCents)}</Text>
 
-        {!online ? (
+        {manualOpen ? (
+          manualPanel
+        ) : !online ? (
           <>
-            <Banner tone="warning" text="Sin internet no se genera el QR. Si el cliente pagó con el QR del mostrador, revisa la notificación en tu celular." />
-            <Button label="Ya vi el pago en mi Yape/Plin" icon="checkmark-done" variant="primary" big onPress={manual} />
+            <Banner tone="warning" text="No hay señal y no sale el QR. Que te yapee a tu QR del mostrador y revisa que te llegue." />
+            <Button label="Ya me llegó el Yape/Plin" icon="checkmark-done" variant="primary" big onPress={manual} />
           </>
         ) : loading && !charge ? (
           <ActivityIndicator size="large" color={colors.primaryDark} style={{ marginVertical: 60 }} />
@@ -138,7 +154,7 @@ export function QrPaymentModal({
             </View>
             {expired ? (
               <>
-                <Banner tone="warning" text="El QR venció. Genera uno nuevo para que el cliente pague." />
+                <Banner tone="warning" text="Se acabó el tiempo del QR. Saca uno nuevo para que te pague." />
                 <Button label="Generar nuevo QR" icon="qr-code" big onPress={create} loading={loading} />
               </>
             ) : (
@@ -146,7 +162,7 @@ export function QrPaymentModal({
                 <Text style={styles.timer}>
                   {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
                 </Text>
-                <Text style={styles.hint}>Esperando el pago… se confirma solo.</Text>
+                <Text style={styles.hint}>Esperando el pago… apenas llegue, se registra solo.</Text>
                 {isTest && (
                   <Button
                     label="Simular pago (modo prueba)"
@@ -161,7 +177,7 @@ export function QrPaymentModal({
         ) : null}
 
         <View style={{ height: spacing.lg }} />
-        {online && <Button label="El cliente pagó con el QR del mostrador" variant="ghost" icon="hand-left" onPress={manual} />}
+        {online && !manualOpen && <Button label="Me yapeó a mi QR del mostrador" variant="ghost" icon="hand-left" onPress={manual} />}
         <Button label="Cancelar y cobrar de otra forma" variant="ghost" icon="close" onPress={cancel} style={{ marginTop: spacing.sm }} />
       </ScrollView>
     </Modal>
@@ -177,4 +193,7 @@ const styles = StyleSheet.create({
   wallet: { color: '#FFFFFF', fontWeight: '900', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, overflow: 'hidden', fontSize: font.body },
   timer: { fontSize: font.huge, fontWeight: '900', textAlign: 'center', color: colors.secondary, fontVariant: ['tabular-nums'] },
   hint: { fontSize: font.body, color: colors.textMuted, textAlign: 'center' },
+  manual: { gap: spacing.md, backgroundColor: colors.surface, borderRadius: 16, padding: spacing.lg, borderWidth: 2, borderColor: colors.border },
+  manualTitle: { fontSize: font.large, fontWeight: '900', color: colors.text, textAlign: 'center' },
+  input: { minHeight: 56, borderWidth: 2, borderColor: colors.border, borderRadius: 12, paddingHorizontal: spacing.md, fontSize: font.large, color: colors.text, textAlign: 'center' },
 });

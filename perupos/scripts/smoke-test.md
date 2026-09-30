@@ -95,7 +95,7 @@ de Yape. Repite otra venta con el **mismo número**: debe rechazarse ("ya se us�
 
 ### 13. Sin señal — "Se cayó el internet"
 Activa **modo avión**. Haz 2 ventas en efectivo de S/ 3.00 (una Coca-Cola cada una).
-**Esperado:** barra superior **ámbar** "Sin internet — la app sigue funcionando · 2 por enviar".
+**Esperado:** barra superior **ámbar** "No hay señal — sigue vendiendo nomás · 2 por enviar".
 Los tickets salen con "Número por asignar". Quita el modo avión y espera ~10 s (o toca la barra).
 **Esperado:** barra verde "En línea". En *Mis Ventas* aparecen **exactamente 2** ventas nuevas
 (no 4). Toca la barra varias veces seguidas: no se duplican.
