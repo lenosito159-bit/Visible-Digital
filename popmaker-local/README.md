@@ -61,6 +61,16 @@ crea bucket y access key en `http://localhost:9001`, y usa
 
 ## 3. Configurar el MCP
 
+**Forma rápida:** `scripts/instalar.sh` instala lo necesario, crea `.env`, te pide la clave de
+Gemini sin mostrarla en pantalla y ejecuta el diagnóstico. Cuando quieras comprobar el estado:
+
+```bash
+python3 scripts/diagnostico.py            # gratis: programas, .env, clave, texto y tests
+python3 scripts/diagnostico.py --imagen   # además genera 1 imagen de prueba (céntimos)
+```
+
+**Forma manual:**
+
 ```bash
 cd popmaker-local
 pip install -r requirements.txt
@@ -212,6 +222,8 @@ herramienta en `.claude/settings.json` y `scripts/generate_images.py`:
 | `scripts/comun.py` | Rutas, `.env`, YAML, llamada a Gemini y prompt base (compartido) |
 | `scripts/generate_ideas.py` | Ideas sin Claude (Gemini), banco de ideas y duplicados |
 | `scripts/generate_images.py` | Imagen de un guion: cliente MCP por stdio, o API de Gemini si falla |
+| `scripts/instalar.sh` | Puesta en marcha: dependencias, `.env` y clave (sin mostrarla) |
+| `scripts/diagnostico.py` | Dice qué falta: programas, clave, facturación de imágenes, oferta y tests |
 | `scripts/metricas.py` | Resultados de cada pieza (`data/metricas.csv`) y ranking por puntuación orientada a ingresos |
 | `tests/` | 20 tests automáticos con Gemini simulado: no gastan créditos |
 | `scripts/validar_guion.py` | Comprueba un guion contra las reglas medibles de `brand_voice.yaml` (slides, palabras por slide, prohibidas) |
