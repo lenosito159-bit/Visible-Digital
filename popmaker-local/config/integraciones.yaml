@@ -1,0 +1,23 @@
+# Integraciones externas del sistema. Las crea/usa Claude con los plugins (conectores)
+# de tu cuenta de claude.ai; los scripts locales no necesitan estas cuentas.
+
+shopify:
+  tienda: "vasekt-up.myshopify.com"
+  plan: "trial"                    # hay que pasar a un plan de pago para vender
+  app_digital_products: false      # instalar desde el admin de Shopify para vender descargables
+  producto_url: ""                 # rellenar cuando exista el producto de la plantilla
+
+lovable:
+  proyecto: "https://lovable.dev/projects/d95d289e-835f-4f11-a99f-b993b8eb80fa"
+  preview: "https://id-preview--d95d289e-835f-4f11-a99f-b993b8eb80fa.lovable.app"
+  landing: "/"                     # venta de la plantilla (precio y enlace en src/config/oferta.ts)
+  panel: "/panel"                  # sube data/metricas.csv, data/ideas/ y data/output/guiones/
+
+google_drive:
+  # El conector de Drive puede crear hojas pero no reescribir su contenido:
+  # /sincronizar-metricas crea una hoja nueva con fecha cada vez.
+  hoja_inicial: "https://docs.google.com/spreadsheets/d/1r5n5FW6lnwJya5BvQg-pGWh99Vo_--6k8VUItjyFPzQ/edit"
+  ultima_sincronizacion: ""
+
+webflow:
+  sitio: ""                        # tu cuenta no tiene sitios; crea uno en webflow.com y dímelo
