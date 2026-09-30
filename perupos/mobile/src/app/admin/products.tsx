@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatSoles, type Product } from '@perupos/shared';
 import { ProductImage } from '@/components/ProductTile';
 import { Button, Chip, Field, Screen } from '@/components/ui';
@@ -25,8 +25,8 @@ export default function AdminProducts() {
 
   const rows = onlyLow ? list.filter((p) => p.minStock > 0 && p.stock <= p.minStock) : list;
 
-  return (
-    <Screen>
+  const header = (
+    <View>
       <Button label="Nuevo producto" icon="add-circle" variant="accent" onPress={() => router.push('/product-new')} />
       <View style={{ height: spacing.md }} />
       <Field label="Buscar" value={search} onChangeText={setSearch} placeholder="Nombre o código" />
@@ -34,22 +34,36 @@ export default function AdminProducts() {
         <Chip label="Todos" selected={!onlyLow} onPress={() => setOnlyLow(false)} />
         <Chip label="Por reponer" icon="warning" color={colors.danger} selected={onlyLow} onPress={() => setOnlyLow(true)} />
       </View>
-      {rows.map((p) => {
-        const low = p.minStock > 0 && p.stock <= p.minStock;
-        return (
-          <Pressable key={p.id} onPress={() => router.push(`/admin/product/${p.id}`)} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
-            <ProductImage product={p} size={52} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{p.name}</Text>
-              <Text style={[styles.meta, low && { color: colors.danger, fontWeight: '800' }]}>
-                Stock {p.stock} {p.unit === 'KG' ? 'kg' : 'und'} · mín. {p.minStock}
-              </Text>
-            </View>
-            <Text style={styles.price}>{formatSoles(p.priceCents)}</Text>
-            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
-          </Pressable>
-        );
-      })}
+    </View>
+  );
+
+  return (
+    <Screen scroll={false} padded={false}>
+      <FlatList
+        data={rows}
+        keyExtractor={(p) => p.id}
+        ListHeaderComponent={header}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }}
+        initialNumToRender={15}
+        windowSize={7}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item: p }) => {
+          const low = p.minStock > 0 && p.stock <= p.minStock;
+          return (
+            <Pressable onPress={() => router.push(`/admin/product/${p.id}`)} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
+              <ProductImage product={p} size={52} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.name}>{p.name}</Text>
+                <Text style={[styles.meta, low && { color: colors.danger, fontWeight: '800' }]}>
+                  Stock {p.stock} {p.unit === 'KG' ? 'kg' : 'und'} · mín. {p.minStock}
+                </Text>
+              </View>
+              <Text style={styles.price}>{formatSoles(p.priceCents)}</Text>
+              <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+            </Pressable>
+          );
+        }}
+      />
     </Screen>
   );
 }

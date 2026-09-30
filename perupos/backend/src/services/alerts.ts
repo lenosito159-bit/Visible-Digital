@@ -1,4 +1,4 @@
-import { formatSoles, type AlertSeverity, type AlertType, type Role } from '@perupos/shared';
+import { PUSH_CHANNELS, formatSoles, type AlertSeverity, type AlertType, type Role } from '@perupos/shared';
 import { many, pool, type Db } from '../db/pool.js';
 import { currentCash } from './cash.js';
 import { pushToRoles } from './push.js';
@@ -148,7 +148,12 @@ export async function evaluateAlerts(): Promise<{ opened: number; resolved: numb
     if (res.rows[0]?.inserted) opened.push(c);
   }
   for (const c of opened) {
-    await pushToRoles(c.targetRoles, { title: c.title, body: c.message, data: { type: c.type, entityId: c.entityId } });
+    await pushToRoles(c.targetRoles, {
+      title: c.title,
+      body: c.message,
+      data: { type: c.type, entityId: c.entityId },
+      channelId: PUSH_CHANNELS[c.type].id,
+    });
   }
   if (opened.length) {
     await pool.query('UPDATE alerts SET pushed_at = now() WHERE pushed_at IS NULL AND resolved_at IS NULL');

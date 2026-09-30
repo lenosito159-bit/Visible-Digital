@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatSoles, type Product } from '@perupos/shared';
 import { imageUrl } from '@/lib/api';
@@ -9,7 +10,19 @@ import type { IconName } from './ui';
 /** Ícono por categoría para productos sin foto. */
 export function ProductImage({ product, icon, size }: { product: Product; icon?: string; size: number }) {
   const uri = imageUrl(product.imageUrl);
-  if (uri) return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: 10 }} contentFit="cover" transition={150} />;
+  // Caché en memoria y disco: las fotos no se vuelven a bajar (ahorra datos del plan prepago).
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: 10 }}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        recyclingKey={product.id}
+        transition={0}
+      />
+    );
+  }
   return (
     <View style={[styles.placeholder, { width: size, height: size }]}>
       <Ionicons name={(icon as IconName) ?? 'pricetag'} size={size * 0.45} color={colors.secondary} />
@@ -17,13 +30,24 @@ export function ProductImage({ product, icon, size }: { product: Product; icon?:
   );
 }
 
-export function ProductTile({ product, icon, onPress, width }: { product: Product; icon?: string; onPress: () => void; width: number }) {
+/** Memorizado: al agregar al carrito no se vuelven a dibujar todos los productos. */
+export const ProductTile = memo(function ProductTile({
+  product,
+  icon,
+  onPress,
+  width,
+}: {
+  product: Product;
+  icon?: string;
+  onPress: (product: Product) => void;
+  width: number;
+}) {
   const low = product.minStock > 0 && product.stock <= product.minStock;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${product.name}, ${formatSoles(product.priceCents)}`}
-      onPress={onPress}
+      onPress={() => onPress(product)}
       style={({ pressed }) => [styles.tile, { width, opacity: pressed ? 0.7 : 1 }]}
     >
       <ProductImage product={product} icon={icon} size={width - 20} />
@@ -41,7 +65,7 @@ export function ProductTile({ product, icon, onPress, width }: { product: Produc
       )}
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   tile: {

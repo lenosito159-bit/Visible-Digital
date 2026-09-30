@@ -1,4 +1,4 @@
-import type { Role } from '@perupos/shared';
+import { PUSH_CHANNELS, type Role } from '@perupos/shared';
 import { config } from '../config.js';
 import { many, pool } from '../db/pool.js';
 
@@ -8,6 +8,27 @@ export interface PushMessage {
   title: string;
   body: string;
   data?: Record<string, unknown>;
+  /** Canal de Android (ver PUSH_CHANNELS). */
+  channelId?: string;
+}
+
+/** Mensajes para la API de push de Expo (máximo 100 por envío). */
+export function buildPushBatches(tokens: string[], message: PushMessage) {
+  const batches = [];
+  for (let i = 0; i < tokens.length; i += 100) {
+    batches.push(
+      tokens.slice(i, i + 100).map((to) => ({
+        to,
+        title: message.title,
+        body: message.body,
+        data: message.data ?? {},
+        sound: 'default',
+        priority: 'high',
+        channelId: message.channelId ?? PUSH_CHANNELS.MENSAJES.id,
+      })),
+    );
+  }
+  return batches;
 }
 
 /** Envía una notificación push (Expo) a todos los usuarios activos de esos roles. */
@@ -27,16 +48,7 @@ export async function pushToRoles(roles: Role[], message: PushMessage): Promise<
 export async function sendPush(tokens: string[], message: PushMessage): Promise<number> {
   if (!config.PUSH_ENABLED || tokens.length === 0) return 0;
   let sent = 0;
-  for (let i = 0; i < tokens.length; i += 100) {
-    const batch = tokens.slice(i, i + 100).map((to) => ({
-      to,
-      title: message.title,
-      body: message.body,
-      data: message.data ?? {},
-      sound: 'default',
-      priority: 'high',
-      channelId: 'alertas',
-    }));
+  for (const batch of buildPushBatches(tokens, message)) {
     try {
       const res = await fetch(EXPO_PUSH_URL, {
         method: 'POST',

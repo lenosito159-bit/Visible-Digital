@@ -30,6 +30,7 @@ export default function Settings() {
   const [text, setText] = useState({ cashLow: '', creditLimit: '' });
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [integrations, setIntegrations] = useState<Integrations | null>(null);
+  const [rucCheck, setRucCheck] = useState<{ ok: boolean; source: string; message: string } | null>(null);
   const [bank, setBank] = useState({ bank: '', accountNumber: '', cci: '', holder: '' });
   const [message, setMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
 
@@ -41,6 +42,12 @@ export default function Settings() {
     api.get<BankAccount[]>('/bank-accounts').then(setBanks).catch(() => {});
     api.get<Integrations>('/settings/integrations').then(setIntegrations).catch(() => {});
   }, []);
+
+  const ruc = s?.ruc;
+  useEffect(() => {
+    if (!ruc || ruc.length !== 11) return setRucCheck(null);
+    api.get<{ ok: boolean; source: string; message: string }>(`/ruc/${ruc}`).then(setRucCheck).catch(() => setRucCheck(null));
+  }, [ruc]);
 
   if (!s) return message ? <Screen><Banner tone="danger" text={message.text} /></Screen> : <Loading />;
   const set = <K extends keyof BusinessSettings>(k: K, v: BusinessSettings[K]) => setS({ ...s, [k]: v });
@@ -76,6 +83,7 @@ export default function Settings() {
     <Screen footer={<Button label="Guardar" icon="save" big onPress={save} />}>
       <Text style={shared.sectionTitle}>Datos para SUNAT</Text>
       <Field label="RUC" value={s.ruc} onChangeText={(v) => set('ruc', v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={11} error={s.ruc.length === 11 && !isValidRuc(s.ruc) ? 'RUC inválido' : null} />
+      {rucCheck && <Banner tone={rucCheck.source === 'NO_VERIFICADO' ? 'info' : rucCheck.ok ? 'success' : 'warning'} text={rucCheck.message} />}
       <Field label="Razón social" value={s.razonSocial} onChangeText={(v) => set('razonSocial', v)} />
       <Field label="Nombre comercial (el que ve el cliente)" value={s.nombreComercial} onChangeText={(v) => set('nombreComercial', v)} />
       <Field label="Dirección" value={s.direccion} onChangeText={(v) => set('direccion', v)} />

@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { formatSoles, type Customer } from '@perupos/shared';
 import { CustomerPicker, CustomerRow } from '@/components/CustomerPicker';
 import { Button, Empty, Field, Screen, StatCard } from '@/components/ui';
@@ -25,8 +25,8 @@ export default function Customers() {
   const totalDebt = list.reduce((s, c) => s + Math.max(0, c.balanceCents), 0);
   const withDebt = list.filter((c) => c.balanceCents > 0).length;
 
-  return (
-    <Screen>
+  const header = (
+    <View>
       <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
         <StatCard label="Te deben en total" value={formatSoles(totalDebt)} tone={colors.danger} icon="book" />
         <StatCard label="Clientes con deuda" value={String(withDebt)} icon="people" />
@@ -37,12 +37,22 @@ export default function Customers() {
       </View>
       <Button label="Nuevo cliente" icon="person-add" variant="ghost" onPress={() => setCreating(true)} style={{ marginBottom: spacing.md }} />
       <Field label="Buscar cliente" value={search} onChangeText={setSearch} placeholder="Nombre o celular" />
-      <View style={{ gap: spacing.sm }}>
-        {list.map((c) => (
-          <CustomerRow key={c.id} customer={c} onPress={() => router.push(`/customers/${c.id}`)} />
-        ))}
-        {list.length === 0 && <Empty icon="people" text="Aún no hay clientes. Crea uno para anotar sus fiados." />}
-      </View>
+    </View>
+  );
+
+  return (
+    <Screen scroll={false} padded={false}>
+      <FlatList
+        data={list}
+        keyExtractor={(c) => c.id}
+        ListHeaderComponent={header}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl }}
+        renderItem={({ item }) => <CustomerRow customer={item} onPress={() => router.push(`/customers/${item.id}`)} />}
+        ListEmptyComponent={<Empty icon="people" text="Aún no hay clientes. Crea uno para apuntar sus fiados." />}
+        initialNumToRender={15}
+        windowSize={7}
+        keyboardShouldPersistTaps="handled"
+      />
       <CustomerPicker
         visible={creating}
         onClose={() => setCreating(false)}

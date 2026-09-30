@@ -10,6 +10,7 @@ import { toUser } from '../services/mappers.js';
 import { qrProvider } from '../services/payments/provider.js';
 import { pseProvider } from '../services/pse/provider.js';
 import { getSettings } from '../services/settings.js';
+import { checkRuc } from '../services/ruc.js';
 import { config } from '../config.js';
 
 export const adminRouter = Router();
@@ -84,6 +85,12 @@ adminRouter.put('/settings', requirePermission('settings.edit'), async (req, res
   );
   await audit(pool, currentUser(req).id, 'EDITA_CONFIGURACION', 'settings', '1', s);
   res.json(await getSettings(pool));
+});
+
+/** Consulta un RUC en la copia local del padrón de SUNAT (para facturas y para el RUC del negocio). */
+adminRouter.get('/ruc/:ruc', requirePermission('settings.read'), async (req, res) => {
+  const ruc = String(req.params.ruc).replace(/\D/g, '');
+  res.json(await checkRuc(pool, ruc));
 });
 
 /** Estado de las integraciones (sin exponer llaves). */

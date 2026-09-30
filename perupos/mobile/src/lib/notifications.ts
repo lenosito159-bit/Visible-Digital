@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { PUSH_CHANNELS } from '@perupos/shared';
 import { api } from './api';
 
 Notifications.setNotificationHandler({
@@ -20,12 +21,15 @@ Notifications.setNotificationHandler({
 export async function registerForPush(): Promise<void> {
   try {
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('alertas', {
-        name: 'Alertas del negocio',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#10B981',
-      });
+      // Un canal por tipo de alerta: el tendero puede silenciar uno desde Ajustes sin perder los demás.
+      for (const channel of Object.values(PUSH_CHANNELS)) {
+        await Notifications.setNotificationChannelAsync(channel.id, {
+          name: channel.name,
+          importance: Notifications.AndroidImportance[channel.importance],
+          vibrationPattern: channel.importance === 'LOW' ? undefined : [0, 250, 250, 250],
+          lightColor: '#10B981',
+        });
+      }
     }
     if (!Device.isDevice) return;
     const current = await Notifications.getPermissionsAsync();

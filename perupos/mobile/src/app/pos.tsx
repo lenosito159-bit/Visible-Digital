@@ -30,23 +30,43 @@ export default function Pos() {
   const [showCart, setShowCart] = useState(false);
   const [version, setVersion] = useState(0);
 
+  const [query, setQuery] = useState('');
+  const [hasMore, setHasMore] = useState(true);
+
   useEffect(() => onDataChanged(() => setVersion((v) => v + 1)), []);
+  // Espera 250 ms a que el vendedor deje de escribir antes de buscar (menos trabajo en gama baja).
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(search), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
   useFocusEffect(
     useCallback(() => {
       void db.listCategories().then(setCategories);
-      void db.listProducts({ search, categoryId }).then(setProducts);
-    }, [search, categoryId, version]),
+      void db.listProducts({ search: query, categoryId, limit: db.PAGE_SIZE, offset: 0 }).then((page) => {
+        setProducts(page);
+        setHasMore(page.length === db.PAGE_SIZE);
+      });
+    }, [query, categoryId, version]),
   );
+
+  // Catálogo por páginas: con 1,000+ productos no se carga todo de golpe.
+  const loadMore = useCallback(() => {
+    if (!hasMore) return;
+    void db.listProducts({ search: query, categoryId, limit: db.PAGE_SIZE, offset: products.length }).then((page) => {
+      setProducts((prev) => [...prev, ...page.filter((p) => !prev.some((q) => q.id === p.id))]);
+      setHasMore(page.length === db.PAGE_SIZE);
+    });
+  }, [hasMore, query, categoryId, products.length]);
 
   const icons = useMemo(() => new Map(categories.map((c) => [c.id, c.icon])), [categories]);
   const gridWidth = wide ? width * 0.6 : width;
   const columns = Math.max(2, Math.floor((gridWidth - spacing.md) / 170));
   const tileWidth = (gridWidth - spacing.md * (columns + 1)) / columns;
 
-  const add = (p: Product) => {
+  const add = useCallback((p: Product) => {
     cart.add(p);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  }, []);
 
   const checkout = () => {
     setShowCart(false);
@@ -90,7 +110,14 @@ export default function Pos() {
         keyExtractor={(p) => p.id}
         columnWrapperStyle={{ gap: spacing.md }}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: 120 }}
-        renderItem={({ item }) => <ProductTile product={item} icon={icons.get(item.categoryId ?? '')} width={tileWidth} onPress={() => add(item)} />}
+        renderItem={({ item }) => <ProductTile product={item} icon={icons.get(item.categoryId ?? '')} width={tileWidth} onPress={add} />}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.6}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={5}
+        removeClippedSubviews
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <View>
             <Empty icon="search" text="No hay productos con ese nombre." />

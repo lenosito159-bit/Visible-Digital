@@ -364,3 +364,16 @@ export interface CashSummary {
   differenceCents: Cents | null;
   movements: { id: string; kind: 'IN' | 'OUT'; amountCents: Cents; reason: string; createdAt: string }[];
 }
+
+/**
+ * Canales de notificación de Android: uno por tipo de alerta, para que el
+ * tendero pueda silenciar uno (por ejemplo "Sin movimiento") sin perder los demás.
+ */
+export const PUSH_CHANNELS = {
+  STOCK_BAJO: { id: 'stock-bajo', name: 'Stock bajo', importance: 'HIGH' },
+  LIMITE_CREDITO: { id: 'limite-fiado', name: 'Límite de fiado', importance: 'HIGH' },
+  CAJA_BAJA: { id: 'caja-baja', name: 'Caja baja', importance: 'HIGH' },
+  DEUDA_VENCIDA: { id: 'deudas-vencidas', name: 'Fiados vencidos', importance: 'DEFAULT' },
+  SIN_MOVIMIENTO: { id: 'sin-movimiento', name: 'Productos sin movimiento', importance: 'LOW' },
+  MENSAJES: { id: 'mensajes', name: 'Mensajes del Agente Financiero', importance: 'HIGH' },
+} as const satisfies Record<AlertType | 'MENSAJES', { id: string; name: string; importance: 'HIGH' | 'DEFAULT' | 'LOW' }>;

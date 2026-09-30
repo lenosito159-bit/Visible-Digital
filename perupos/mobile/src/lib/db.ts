@@ -113,21 +113,37 @@ export async function listCategories(): Promise<Category[]> {
   return rows.map((r) => ({ id: r.id, name: r.name, icon: r.icon, sortOrder: r.sort_order }));
 }
 
+/**
+ * Guarda el catálogo con una sola sentencia preparada dentro de una transacción:
+ * en un celular de gama baja, 1,000 productos se guardan en segundos y no en minutos.
+ */
 export async function saveProducts(products: Product[]): Promise<void> {
+  if (products.length === 0) return;
   const d = database();
   await d.withTransactionAsync(async () => {
-    for (const p of products) {
-      await d.runAsync(
-        `INSERT OR REPLACE INTO products (id, barcode, name, category_id, price_cents, cost_cents, stock, min_stock, unit,
-           tax_affectation, image_url, active, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        p.id, p.barcode, p.name, p.categoryId, p.priceCents, p.costCents, p.stock, p.minStock, p.unit,
-        p.taxAffectation, p.imageUrl, p.active ? 1 : 0, p.updatedAt,
-      );
+    const stmt = await d.prepareAsync(
+      `INSERT OR REPLACE INTO products (id, barcode, name, category_id, price_cents, cost_cents, stock, min_stock, unit,
+         tax_affectation, image_url, active, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    try {
+      for (const p of products) {
+        await stmt.executeAsync(
+          p.id, p.barcode, p.name, p.categoryId, p.priceCents, p.costCents, p.stock, p.minStock, p.unit,
+          p.taxAffectation, p.imageUrl, p.active ? 1 : 0, p.updatedAt,
+        );
+      }
+    } finally {
+      await stmt.finalizeAsync();
     }
   });
 }
 
-export async function listProducts(filter: { search?: string; categoryId?: string | null } = {}): Promise<Product[]> {
+/** Tamaño de página del catálogo: lo que entra en 2–3 pantallas. */
+export const PAGE_SIZE = 60;
+
+export async function listProducts(
+  filter: { search?: string; categoryId?: string | null; limit?: number; offset?: number } = {},
+): Promise<Product[]> {
   const where = ['active = 1'];
   const params: string[] = [];
   if (filter.search?.trim()) {
@@ -139,8 +155,9 @@ export async function listProducts(filter: { search?: string; categoryId?: strin
     where.push('category_id = ?');
     params.push(filter.categoryId);
   }
+  const page = filter.limit ? ` LIMIT ${Math.floor(filter.limit)} OFFSET ${Math.floor(filter.offset ?? 0)}` : '';
   const rows = await database().getAllAsync<ProductRow>(
-    `SELECT * FROM products WHERE ${where.join(' AND ')} ORDER BY name COLLATE NOCASE`,
+    `SELECT * FROM products WHERE ${where.join(' AND ')} ORDER BY name COLLATE NOCASE${page}`,
     params,
   );
   return rows.map(toProduct);
@@ -201,21 +218,28 @@ const toCustomer = (r: CustomerRow): Customer => ({
 });
 
 export async function saveCustomers(customers: Customer[]): Promise<void> {
+  if (customers.length === 0) return;
   const d = database();
   await d.withTransactionAsync(async () => {
-    for (const c of customers) {
-      await d.runAsync(
-        `INSERT INTO customers (id, name, phone, photo_url, doc_type, doc_number, credit_limit_cents, balance_cents,
-           oldest_debt_at, last_payment_at, active, updated_at, trato, reputation)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET name = excluded.name, phone = excluded.phone, photo_url = excluded.photo_url,
-           trato = excluded.trato, reputation = excluded.reputation,
-           doc_type = excluded.doc_type, doc_number = excluded.doc_number, credit_limit_cents = excluded.credit_limit_cents,
-           balance_cents = excluded.balance_cents, oldest_debt_at = excluded.oldest_debt_at,
-           last_payment_at = excluded.last_payment_at, active = excluded.active, updated_at = excluded.updated_at`,
-        c.id, c.name, c.phone, c.photoUrl, c.docType, c.docNumber, c.creditLimitCents, c.balanceCents,
-        c.oldestDebtAt, c.lastPaymentAt, c.active ? 1 : 0, c.updatedAt, c.trato, c.reputation,
-      );
+    const stmt = await d.prepareAsync(
+      `INSERT INTO customers (id, name, phone, photo_url, doc_type, doc_number, credit_limit_cents, balance_cents,
+         oldest_debt_at, last_payment_at, active, updated_at, trato, reputation)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET name = excluded.name, phone = excluded.phone, photo_url = excluded.photo_url,
+         trato = excluded.trato, reputation = excluded.reputation,
+         doc_type = excluded.doc_type, doc_number = excluded.doc_number, credit_limit_cents = excluded.credit_limit_cents,
+         balance_cents = excluded.balance_cents, oldest_debt_at = excluded.oldest_debt_at,
+         last_payment_at = excluded.last_payment_at, active = excluded.active, updated_at = excluded.updated_at`,
+    );
+    try {
+      for (const c of customers) {
+        await stmt.executeAsync(
+          c.id, c.name, c.phone, c.photoUrl, c.docType, c.docNumber, c.creditLimitCents, c.balanceCents,
+          c.oldestDebtAt, c.lastPaymentAt, c.active ? 1 : 0, c.updatedAt, c.trato, c.reputation,
+        );
+      }
+    } finally {
+      await stmt.finalizeAsync();
     }
   });
 }

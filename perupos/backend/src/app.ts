@@ -1,3 +1,4 @@
+import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -18,6 +19,8 @@ export function createApp() {
   app.set('trust proxy', 1);
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cors({ origin: config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(',') }));
+  // Comprime las respuestas (con 1,000 productos el catálogo baja de ~290 KB a ~35 KB): cuida los datos del plan prepago.
+  app.use(compression());
 
   // Los webhooks se verifican con el cuerpo crudo: no pasan por el parser JSON.
   const json = express.json({ limit: '1mb' });

@@ -102,3 +102,18 @@ describe('recomendaciones', () => {
     expect(recs.some((r) => r.kind === 'CAJA')).toBe(true);
   });
 });
+
+describe('push', () => {
+  it('cada alerta sale por su canal de Android y en lotes de 100', async () => {
+    const { buildPushBatches } = await import('../src/services/push.js');
+    const { PUSH_CHANNELS, ALERT_TYPES } = await import('@perupos/shared');
+    const tokens = Array.from({ length: 150 }, (_, i) => `ExponentPushToken[${i}]`);
+    const batches = buildPushBatches(tokens, { title: 'Stock bajo', body: 'Quedan 3', channelId: PUSH_CHANNELS.STOCK_BAJO.id });
+    expect(batches.map((b) => b.length)).toEqual([100, 50]);
+    expect(batches[0]![0]).toMatchObject({ channelId: 'stock-bajo', sound: 'default', priority: 'high' });
+    // Un mensaje del agente sin canal va a "mensajes".
+    expect(buildPushBatches(['t'], { title: 'x', body: 'y' })[0]![0]!.channelId).toBe('mensajes');
+    // Todas las alertas tienen canal.
+    for (const type of ALERT_TYPES) expect(PUSH_CHANNELS[type].id).toBeTruthy();
+  });
+});

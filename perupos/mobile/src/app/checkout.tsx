@@ -33,7 +33,7 @@ import { AuthorizeModal } from '@/components/AuthorizeModal';
 import { CustomerPicker } from '@/components/CustomerPicker';
 import { QrPaymentModal } from '@/components/QrPaymentModal';
 import { Banner, Button, Chip, Field, Screen, type IconName } from '@/components/ui';
-import { ApiError, errorMessage } from '@/lib/api';
+import { ApiError, api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cart, useCart } from '@/lib/cart';
 import { buildLocalSale } from '@/lib/sale';
@@ -158,6 +158,25 @@ export default function Checkout() {
     const remaining = Math.max(0, total - payments.reduce((s, p) => s + p.amountCents, 0));
     setLines((ls) => [...ls, { key: `l${Date.now()}`, method, amount: toText(remaining), tendered: '' }]);
   };
+
+  // Factura: se consulta el RUC en el padrón de SUNAT (copia del servidor) y se llena la razón social.
+  const [rucCheck, setRucCheck] = useState<{ ok: boolean; source: string; message: string; razonSocial: string | null } | null>(null);
+  useEffect(() => {
+    setRucCheck(null);
+    if (docType !== 'FACTURA' || buyerDoc.length !== 11 || !online) return;
+    let alive = true;
+    api
+      .get<{ ok: boolean; source: string; message: string; razonSocial: string | null }>(`/ruc/${buyerDoc}`)
+      .then((r) => {
+        if (!alive) return;
+        setRucCheck(r);
+        if (r.razonSocial) setBuyerName((name) => name || r.razonSocial!);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [docType, buyerDoc, online]);
 
   const docTypes = allowedDocTypes(regime);
   const buyerDocType: IdentityDocType = docType === 'FACTURA' ? 'RUC' : buyerDoc.length === 11 ? 'RUC' : buyerDoc.length === 8 ? 'DNI' : buyerDoc ? 'CE' : 'NONE';
@@ -410,6 +429,12 @@ export default function Checkout() {
             keyboardType="number-pad"
             maxLength={docType === 'FACTURA' ? 11 : 12}
           />
+          {rucCheck && (
+            <Banner
+              tone={rucCheck.source === 'NO_VERIFICADO' ? 'info' : rucCheck.ok ? 'success' : 'warning'}
+              text={rucCheck.message}
+            />
+          )}
           {buyerDoc ? <Field label={docType === 'FACTURA' ? 'Razón social' : 'Nombre'} value={buyerName} onChangeText={setBuyerName} /> : null}
         </View>
       )}
