@@ -1,8 +1,21 @@
 import { z } from 'zod';
 
-const bool = z
-  .enum(['true', 'false', '1', '0'])
-  .transform((v) => v === 'true' || v === '1');
+/**
+ * Booleano desde el .env: "true"/"1" o "false"/"0". Una variable vacía
+ * ("TAYPI_TEST_ENDPOINT=") cuenta como no definida y toma el valor por defecto.
+ */
+const boolEnv = (defaultValue?: boolean) =>
+  z.preprocess(
+    (v) => {
+      if (v === undefined || v === '') return defaultValue;
+      if (typeof v !== 'string') return v;
+      const value = v.trim().toLowerCase();
+      if (value === 'true' || value === '1') return true;
+      if (value === 'false' || value === '0') return false;
+      return v;
+    },
+    defaultValue === undefined ? z.boolean().optional() : z.boolean(),
+  );
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -22,20 +35,20 @@ const schema = z.object({
     .default('https://sandbox.taypi.pe'),
   QR_TTL_SECONDS: z.coerce.number().int().min(30).default(120),
   /** Registra todas las respuestas crudas de TAYPI (por defecto solo la primera de cada tipo). */
-  TAYPI_DEBUG: bool.default(false),
+  TAYPI_DEBUG: boolEnv(false),
   /** Habilita POST /webhooks/taypi/test (simular pagos firmados). Por defecto: activo salvo NODE_ENV=production. */
-  TAYPI_TEST_ENDPOINT: bool.optional(),
+  TAYPI_TEST_ENDPOINT: boolEnv(),
   /** Solo proveedor mock: marca el QR como pagado tras N segundos (0 = nunca). */
   MOCK_AUTOPAY_SECONDS: z.coerce.number().int().min(0).default(0),
 
   // Comprobantes electrónicos (PSE).
   PSE_PROVIDER: z.enum(['mock', 'nubefact', 'none']).default('mock'),
-  NUBEFACT_URL: z.string().url().optional(),
+  NUBEFACT_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   NUBEFACT_TOKEN: z.string().optional(),
 
-  PUSH_ENABLED: bool.default(true),
+  PUSH_ENABLED: boolEnv(true),
   EXPO_ACCESS_TOKEN: z.string().optional(),
-  JOBS_ENABLED: bool.default(true),
+  JOBS_ENABLED: boolEnv(true),
   ALERTS_INTERVAL_MINUTES: z.coerce.number().int().min(1).default(15),
 });
 
