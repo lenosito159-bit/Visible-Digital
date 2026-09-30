@@ -33,6 +33,26 @@ Verificado desde `npm ci` limpio, contra PostgreSQL 16.
 
 Qué cubren los tests (y qué no): ver la tabla al final.
 
+### Nota de CI (30/09/2026): no hay test flaky
+
+En el PR #2 aparecen **dos checks llamados "test"**. No es el mismo test corriendo dos veces:
+son dos workflows distintos sobre el mismo commit.
+
+| Workflow | Archivo | Qué corre | Duración típica |
+| --- | --- | --- | --- |
+| API tests | `.github/workflows/api-tests.yml` | Tests del catálogo de APIs (raíz del repo), no de PeruPOS | ~15 s |
+| PeruPOS | `.github/workflows/perupos.yml` | `npm ci` + PostgreSQL + typecheck + 79 tests | ~1 min |
+
+Cuando uno aparece "en curso" y el otro ya pasó, es solo que PeruPOS tarda más. En el commit
+`2703151` ambos terminaron en verde, y la suite completa pasó **5 de 5 veces seguidas** en local.
+No se saltó ningún test.
+
+Riesgo conocido (no es flakiness hoy): dentro de cada archivo de `backend/test/`, los casos
+comparten la base de datos y **dependen del orden** (por ejemplo, el cierre de caja suma las
+ventas de los casos anteriores). Vitest los corre en orden fijo y los archivos uno tras otro
+(`fileParallelism: false`). No activar `--sequence.shuffle` ni paralelismo sin antes aislar
+cada caso con su propia base.
+
 ## Cómo instalar el APK en un Android (paso a paso)
 
 Necesitas una cuenta gratuita en [expo.dev](https://expo.dev). El build se hace en la nube
