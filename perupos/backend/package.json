@@ -6,17 +6,17 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "dev": "tsx watch --env-file-if-exists=.env --env-file-if-exists=.env.local src/index.ts",
     "build": "tsc -p tsconfig.build.json",
-    "start": "node --env-file-if-exists=.env dist/index.js",
+    "start": "node --env-file-if-exists=.env --env-file-if-exists=.env.local dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate.ts",
-    "db:seed": "tsx --env-file-if-exists=.env src/db/seed.ts",
-    "perufoodnet:import": "tsx --env-file-if-exists=.env src/scripts/import-perufoodnet.ts",
-    "padron:import": "tsx --env-file-if-exists=.env src/scripts/import-padron.ts",
-    "taypi:check": "tsx --env-file-if-exists=.env src/scripts/taypi-check.ts",
-    "pse:check": "tsx --env-file-if-exists=.env src/scripts/pse-check.ts"
+    "db:migrate": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local src/db/migrate.ts",
+    "db:seed": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local src/db/seed.ts",
+    "perufoodnet:import": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local src/scripts/import-perufoodnet.ts",
+    "padron:import": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local src/scripts/import-padron.ts",
+    "taypi:check": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local src/scripts/taypi-check.ts",
+    "pse:check": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local src/scripts/pse-check.ts"
   },
   "dependencies": {
     "@perupos/shared": "1.0.0",

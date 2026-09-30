@@ -1,5 +1,11 @@
 # Cambios de PeruPOS
 
+## 2026-09-30 — Credenciales en `.env.local`
+- `.env.local` y `.env.*.local` quedan ignorados por git.
+- Todos los scripts del backend leen `.env` y luego `.env.local`; lo de `.env.local` manda.
+- Al arrancar, el servidor muestra qué credenciales cargó (solo los últimos 4 caracteres).
+- No cambia nada del cobro ni del inicio de sesión.
+
 ## 2026-09-30 — Pasada de adaptación a bodega peruana
 
 Rama `claude/bold-ride-0su48m`. Un commit por bloque.

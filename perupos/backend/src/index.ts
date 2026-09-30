@@ -1,5 +1,6 @@
 import { createApp } from './app.js';
 import { config } from './config.js';
+import { credentialsSummary } from './credentials.js';
 import { pool } from './db/pool.js';
 import { migrate } from './db/migrate.js';
 import { evaluateAlerts } from './services/alerts.js';
@@ -9,7 +10,7 @@ await migrate();
 
 const server = createApp().listen(config.PORT, () => {
   console.log(`PeruPOS API escuchando en http://localhost:${config.PORT}`);
-  console.log(`Pagos QR: ${config.PAYMENTS_PROVIDER} · PSE: ${config.PSE_PROVIDER}`);
+  credentialsSummary(config).forEach((line) => console.log(line));
 });
 
 const timers: NodeJS.Timeout[] = [];

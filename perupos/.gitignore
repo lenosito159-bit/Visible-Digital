@@ -1,6 +1,9 @@
 node_modules/
 dist/
 .env
+# Credenciales reales (llaves de TAYPI, token de Nubefact): nunca al repo.
+.env.local
+.env.*.local
 backend/uploads/*
 !backend/uploads/.gitkeep
 mobile/.expo/
