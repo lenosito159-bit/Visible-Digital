@@ -20,25 +20,34 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "permissions": ["android.permission.CAMERA"],
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "PeruPOS guarda tu sesión de forma segura en este teléfono."
+        }
+      ],
       [
         "expo-camera",
         {
           "cameraPermission": "PeruPOS usa la cámara para escanear códigos de barras y tomar fotos de productos.",
-          "recordAudioAndroid": false
+          "recordAudioAndroid": false,
+          "microphonePermission": false
         }
       ],
       [
         "expo-image-picker",
         {
           "photosPermission": "PeruPOS necesita tus fotos para elegir la imagen de un producto o cliente.",
-          "cameraPermission": "PeruPOS usa la cámara para tomar fotos de productos."
+          "cameraPermission": "PeruPOS usa la cámara para tomar fotos de productos.",
+          "microphonePermission": false
         }
       ],
       [
