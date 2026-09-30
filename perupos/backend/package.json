@@ -14,7 +14,9 @@
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/db/seed.ts",
     "perufoodnet:import": "tsx --env-file-if-exists=.env src/scripts/import-perufoodnet.ts",
-    "padron:import": "tsx --env-file-if-exists=.env src/scripts/import-padron.ts"
+    "padron:import": "tsx --env-file-if-exists=.env src/scripts/import-padron.ts",
+    "taypi:check": "tsx --env-file-if-exists=.env src/scripts/taypi-check.ts",
+    "pse:check": "tsx --env-file-if-exists=.env src/scripts/pse-check.ts"
   },
   "dependencies": {
     "@perupos/shared": "1.0.0",

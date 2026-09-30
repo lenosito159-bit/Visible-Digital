@@ -9,6 +9,8 @@ import { saleInputSchema } from '../http/schemas.js';
 import { evaluateAlerts } from '../services/alerts.js';
 import { applyWebhook, cancelQrCharge, createQrCharge, refreshQrCharge } from '../services/payments/charges.js';
 import { MockQrProvider } from '../services/payments/mock.js';
+import { TaypiQrProvider } from '../services/payments/taypi.js';
+import { toCharge } from '../services/mappers.js';
 import { qrProvider } from '../services/payments/provider.js';
 import { emitPendingDocuments } from '../services/pse/emitter.js';
 import { pseProvider } from '../services/pse/provider.js';
@@ -111,6 +113,40 @@ salesRouter.get('/payments/qr/:id', requirePermission('sales.create', 'credit.ab
 
 salesRouter.post('/payments/qr/:id/cancel', requirePermission('sales.create', 'credit.abono'), async (req, res) => {
   res.json(await cancelQrCharge(req.params.id as string));
+});
+
+/**
+ * Prueba de webhook sin escanear el QR. Con TAYPI arma un evento firmado con
+ * TAYPI_WEBHOOK_SECRET y lo pasa por el MISMO camino que el webhook real
+ * (verificación de firma incluida). Con el proveedor de prueba, marca el QR como pagado.
+ * Desactivado con NODE_ENV=production salvo TAYPI_TEST_ENDPOINT=true: permite marcar
+ * un QR como pagado sin que nadie haya pagado.
+ */
+salesRouter.post('/webhooks/taypi/test', express.json(), requirePermission('settings.edit'), async (req, res) => {
+  const enabled = config.TAYPI_TEST_ENDPOINT ?? config.NODE_ENV !== 'production';
+  if (!enabled) throw notFound('Ruta no disponible en producción.');
+  const body = parse(
+    z.object({
+      chargeId: z.uuid(),
+      status: z.enum(['completed', 'expired', 'cancelled']).default('completed'),
+      wallet: z.enum(['YAPE', 'PLIN']).default('YAPE'),
+    }),
+    req.body ?? {},
+  );
+  const row = await one(pool, 'SELECT * FROM qr_charges WHERE id = $1', [body.chargeId]);
+  if (!row) throw notFound('No se encontró el cobro.');
+  const provider = qrProvider();
+  if (provider instanceof MockQrProvider) {
+    if (body.status === 'completed') provider.simulatePayment(row.provider_payment_id, body.wallet);
+    res.json({ via: 'mock', charge: await refreshQrCharge(body.chargeId) });
+    return;
+  }
+  if (!(provider instanceof TaypiQrProvider)) throw badRequest('Proveedor no soportado.');
+  const signed = provider.signTestWebhook(row.provider_payment_id, body.status, body.wallet);
+  if (!signed) throw badRequest('Configura TAYPI_WEBHOOK_SECRET para probar el webhook.');
+  const accepted = await applyWebhook(signed.body, { 'taypi-signature': signed.signature });
+  const updated = await one(pool, 'SELECT * FROM qr_charges WHERE id = $1', [body.chargeId]);
+  res.json({ via: 'webhook-firmado', accepted, charge: toCharge(updated!) });
 });
 
 /** Solo en modo de prueba: simula que el cliente pagó el QR desde su app. */

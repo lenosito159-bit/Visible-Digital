@@ -21,6 +21,10 @@ const schema = z.object({
     .enum(['https://app.taypi.pe', 'https://sandbox.taypi.pe', 'https://dev.taypi.pe'])
     .default('https://sandbox.taypi.pe'),
   QR_TTL_SECONDS: z.coerce.number().int().min(30).default(120),
+  /** Registra todas las respuestas crudas de TAYPI (por defecto solo la primera de cada tipo). */
+  TAYPI_DEBUG: bool.default(false),
+  /** Habilita POST /webhooks/taypi/test (simular pagos firmados). Por defecto: activo salvo NODE_ENV=production. */
+  TAYPI_TEST_ENDPOINT: bool.optional(),
   /** Solo proveedor mock: marca el QR como pagado tras N segundos (0 = nunca). */
   MOCK_AUTOPAY_SECONDS: z.coerce.number().int().min(0).default(0),
 

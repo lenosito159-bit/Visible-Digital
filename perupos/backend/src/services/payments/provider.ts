@@ -55,6 +55,7 @@ export function qrProvider(): QrProvider {
             secretKey: config.TAYPI_SECRET_KEY!,
             webhookSecret: config.TAYPI_WEBHOOK_SECRET,
             baseUrl: config.TAYPI_BASE_URL,
+            debug: config.TAYPI_DEBUG,
           })
         : new MockQrProvider();
   }

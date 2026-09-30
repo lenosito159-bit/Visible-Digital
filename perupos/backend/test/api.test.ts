@@ -400,7 +400,11 @@ describe('comprobantes', () => {
     expect((await api.get(`/reports/sire?period=${period}`, t.vendedor)).status).toBe(403);
     const res = await api.get(`/reports/sire?period=${period}`, t.admin);
     expect(res.status).toBe(200);
-    expect(res.headers['content-disposition']).toContain(`LE20123456786${period}0014040002`);
+    // Con ventas: …0014040002 + 1 (operativa) + 1 (con información) + 1 (soles) + 2.
+    expect(res.headers['content-disposition']).toContain(`LE20123456786${period}00140400021112.txt`);
+    // Un mes sin ventas: indicador de contenido 0.
+    const empty = await api.get('/reports/sire?period=201901', t.admin);
+    expect(empty.headers['content-disposition']).toContain('LE2012345678620190100140400021012.txt');
     const lines = res.text.trim().split('\r\n');
     expect(lines.length).toBe(Number(res.headers['x-sire-rows']));
     const boleta = lines.find((l) => l.includes('|03|B001|1|'))!;

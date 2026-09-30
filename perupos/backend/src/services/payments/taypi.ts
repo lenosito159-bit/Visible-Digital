@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { Taypi, TaypiError } from 'taypi.pe';
 import type { ChargeStatus } from '@perupos/shared';
 import { HttpError } from '../../http/errors.js';
@@ -18,13 +19,33 @@ export class TaypiQrProvider implements QrProvider {
   private client: Taypi;
   private webhookSecret: string | undefined;
 
-  constructor(opts: { publicKey: string; secretKey: string; webhookSecret?: string; baseUrl: string }) {
+  private debug: boolean;
+  private logged = new Set<string>();
+
+  constructor(opts: { publicKey: string; secretKey: string; webhookSecret?: string; baseUrl: string; debug?: boolean }) {
     this.client = new Taypi(opts.publicKey, opts.secretKey, { baseUrl: opts.baseUrl });
     this.webhookSecret = opts.webhookSecret;
+    this.debug = !!opts.debug;
+  }
+
+  /**
+   * Registra la respuesta cruda la primera vez que se ve cada tipo de llamada
+   * (o siempre con TAYPI_DEBUG=true). Sirve para confirmar los nombres reales de
+   * los campos en la primera prueba con credenciales y ajustar pick() si hace falta.
+   * Las respuestas de pago no contienen llaves; aun así, no se registran cabeceras.
+   */
+  private logRaw(kind: string, raw: unknown, parsed?: ProviderCharge): void {
+    if (!this.debug && this.logged.has(kind)) return;
+    this.logged.add(kind);
+    const summary = parsed
+      ? { id: parsed.providerPaymentId, status: parsed.status, hasQrPayload: !!parsed.qrPayload, hasQrImage: !!parsed.qrImageUrl, wallet: parsed.wallet, expiresAt: parsed.expiresAt }
+      : undefined;
+    console.info(`[TAYPI] respuesta cruda de ${kind}:`, JSON.stringify(raw));
+    if (summary) console.info(`[TAYPI] interpretado como:`, JSON.stringify(summary));
   }
 
   async createCharge(params: CreateChargeParams): Promise<ProviderCharge> {
-    const data = await this.call(() =>
+    const data: Json = await this.call(() =>
       this.client.createPayment(
         {
           amount: (params.amountCents / 100).toFixed(2),
@@ -35,15 +56,26 @@ export class TaypiQrProvider implements QrProvider {
         params.idempotencyKey,
       ),
     );
-    return toCharge(data);
+    return this.parse('createPayment', data);
   }
 
   async getCharge(providerPaymentId: string): Promise<ProviderCharge> {
-    return toCharge(await this.call(() => this.client.getPayment(providerPaymentId)));
+    return this.parse('getPayment', await this.call(() => this.client.getPayment(providerPaymentId)));
   }
 
   async cancelCharge(providerPaymentId: string, idempotencyKey: string): Promise<ProviderCharge> {
-    return toCharge(await this.call(() => this.client.cancelPayment(providerPaymentId, idempotencyKey)));
+    return this.parse('cancelPayment', await this.call(() => this.client.cancelPayment(providerPaymentId, idempotencyKey)));
+  }
+
+  private parse(kind: string, data: Json): ProviderCharge {
+    try {
+      const charge = toCharge(data);
+      this.logRaw(kind, data, charge);
+      return charge;
+    } catch (err) {
+      this.logRaw(kind, data);
+      throw err;
+    }
   }
 
   parseWebhook(rawBody: string, headers: Record<string, string | string[] | undefined>): WebhookUpdate | null {
@@ -51,6 +83,7 @@ export class TaypiQrProvider implements QrProvider {
     if (!this.webhookSecret || typeof signature !== 'string') return null;
     if (!this.client.verifyWebhook(rawBody, signature, this.webhookSecret)) return null;
     const event = JSON.parse(rawBody) as Json;
+    this.logRaw('webhook', event);
     const data = (typeof event.data === 'object' && event.data ? event.data : event) as Json;
     const charge = toCharge(data);
     // Algunos webhooks indican el estado en el tipo de evento ("payment.completed").
@@ -63,6 +96,21 @@ export class TaypiQrProvider implements QrProvider {
       wallet: charge.wallet,
       raw: event,
     };
+  }
+
+  /**
+   * Solo para pruebas: arma y firma un webhook como lo haría TAYPI, para
+   * probar la verificación de firma y el registro del pago sin escanear el QR.
+   * El FORMATO del evento es una suposición (el SDK no lo documenta): si el
+   * webhook real llega distinto, el log "[TAYPI] respuesta cruda de webhook" lo mostrará.
+   */
+  signTestWebhook(providerPaymentId: string, status: string, wallet: string): { body: string; signature: string } | null {
+    if (!this.webhookSecret) return null;
+    const body = JSON.stringify({
+      type: `payment.${status}`,
+      data: { id: providerPaymentId, status, wallet, paid_at: status === 'completed' ? new Date().toISOString() : null },
+    });
+    return { body, signature: 'sha256=' + createHmac('sha256', this.webhookSecret).update(body).digest('hex') };
   }
 
   private async call(fn: () => Promise<Json>): Promise<Json> {

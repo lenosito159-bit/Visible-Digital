@@ -243,3 +243,40 @@ describe('cierre de caja', () => {
     expect(closures.body[0].sessionId).toBe(cash.sessionId);
   });
 });
+
+describe('webhook de TAYPI (firmado) sin escanear', () => {
+  it('el endpoint de prueba firma el evento y lo pasa por la misma verificación que el real', async () => {
+    const { setQrProvider } = await import('../src/services/payments/provider.js');
+    const { TaypiQrProvider } = await import('../src/services/payments/taypi.js');
+    setQrProvider(new TaypiQrProvider({ publicKey: 'taypi_pk_test', secretKey: 'taypi_sk_test', webhookSecret: 'whsec_test', baseUrl: 'https://sandbox.taypi.pe' }));
+    try {
+      const admin = (await pool.query("SELECT id FROM users WHERE username = 'admin'")).rows[0];
+      const charge = (
+        await pool.query(
+          `INSERT INTO qr_charges (provider, provider_payment_id, reference, amount_cents, qr_payload, expires_at, created_by)
+           VALUES ('taypi', 'pay_test_1', $1, 3200, 'qr', now() + interval '2 minutes', $2) RETURNING id`,
+          [randomUUID(), admin.id],
+        )
+      ).rows[0];
+
+      // El vendedor no puede usarlo.
+      expect((await api.post('/webhooks/taypi/test', t.vendedor, { chargeId: charge.id })).status).toBe(403);
+
+      const res = await api.post('/webhooks/taypi/test', t.admin, { chargeId: charge.id, wallet: 'PLIN' });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ via: 'webhook-firmado', accepted: true, charge: { status: 'PAID', wallet: 'PLIN' } });
+
+      // Un webhook con firma falsa en la ruta real se rechaza.
+      const fake = await api.post('/webhooks/taypi', '', { type: 'payment.completed', data: { id: 'pay_test_1', status: 'completed' } }).set('Taypi-Signature', 'sha256=falsa');
+      expect(fake.status).toBe(403);
+
+      // El pago confirmado por webhook sirve para una venta, y se anota como Plin.
+      const sale = saleInput({ items: items32, payments: [{ method: 'YAPE', amountCents: 3200, confirmation: 'QR', chargeId: charge.id }] });
+      const created = await api.post('/sales', t.vendedor, sale);
+      expect(created.status).toBe(201);
+      expect(created.body.payments[0].method).toBe('PLIN');
+    } finally {
+      setQrProvider(null);
+    }
+  });
+});
