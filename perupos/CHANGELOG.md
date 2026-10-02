@@ -1,5 +1,11 @@
 # Cambios de PeruPOS
 
+## 2026-10-02 — Prueba de los 3 flujos por HTTP
+- **Nuevo:** `npm run test:flujos -- --base-de-prueba` prueba contra el servidor corriendo
+  efectivo + Yape, efectivo + Yape + fiado y "te yapeo 40, dame el vuelto", más la caja del
+  turno. Solo con una base recién sembrada y `PAYMENTS_PROVIDER=mock`.
+- **Corregido:** el log de arranque decía ".env.local manda sobre .env" aunque no hubiera `.env.local`.
+
 ## 2026-09-30 — Credenciales en `.env.local`
 - `.env.local` y `.env.*.local` quedan ignorados por git.
 - Todos los scripts del backend leen `.env` y luego `.env.local`; lo de `.env.local` manda.

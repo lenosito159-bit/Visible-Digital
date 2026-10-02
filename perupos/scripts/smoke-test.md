@@ -12,6 +12,9 @@ Samsung A0x) con el APK del perfil `preview`. Anota ✅ / ❌ y una foto de pant
 - `PAYMENTS_PROVIDER=mock`: el QR no cobra de verdad y aparece el botón **Simular pago**.
   Con TAYPI sandbox, paga el QR con la app de prueba que te den.
 - Abre la caja al empezar (paso 4) para que el cierre del paso 15 tenga sentido.
+- Antes del celular, prueba el servidor solo (2 segundos), con la base recién sembrada:
+  `npm run test:flujos -- --base-de-prueba`. Debe terminar en "0 mal". Luego vuelve a
+  sembrar (`npm run db:seed`) porque esa prueba deja ventas y la caja abierta.
 
 Precios del seed usados abajo: Cerveza Pilsen 630 ml S/ 7.50 · Inca Kola 1.5 L S/ 7.00 ·
 Coca-Cola 500 ml S/ 3.00 · Aceite Primor S/ 10.90 · Leche Gloria S/ 4.50 · Pan S/ 0.30.

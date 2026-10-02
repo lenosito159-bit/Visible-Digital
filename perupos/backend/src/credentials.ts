@@ -15,7 +15,10 @@ export function mask(value: string | undefined): string {
  */
 export function credentialsSummary(cfg: Config, cwd = process.cwd()): string[] {
   const files = ['.env', '.env.local'].filter((f) => existsSync(`${cwd}/${f}`));
-  const lines = [`Archivos leídos: ${files.length ? files.join(' + ') : 'ninguno'} (.env.local manda sobre .env)`];
+  const lines = [
+    `Archivos leídos: ${files.length ? files.join(' + ') : 'ninguno'}` +
+      (files.length === 2 ? ' (.env.local manda sobre .env)' : ''),
+  ];
 
   const taypiKeys = cfg.TAYPI_PUBLIC_KEY || cfg.TAYPI_SECRET_KEY;
   lines.push(
