@@ -1,0 +1,25 @@
+{
+  "name": "perupos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PeruPOS — punto de venta offline-first para bodegas y minimercados peruanos",
+  "workspaces": [
+    "shared",
+    "backend",
+    "mobile"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @perupos/shared",
+    "postinstall": "npm run build:shared",
+    "test": "npm test -w @perupos/shared && npm test -w @perupos/backend",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:flujos": "node scripts/flujos-criticos.mjs",
+    "db:migrate": "npm run db:migrate -w @perupos/backend",
+    "db:seed": "npm run db:seed -w @perupos/backend",
+    "dev:backend": "npm run dev -w @perupos/backend",
+    "dev:mobile": "npm start -w @perupos/mobile"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
