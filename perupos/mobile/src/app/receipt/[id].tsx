@@ -1,13 +1,16 @@
 import * as Print from 'expo-print';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { buildReceiptText, formatSoles, whatsappLink, whatsappShareLink, type Sale } from '@perupos/shared';
 import { Banner, Button, Field, Loading, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { errorMessage } from '@/lib/api';
+import { SERVER_ENABLED } from '@/lib/mode';
+import { store } from '@/lib/store';
 import * as db from '@/lib/db';
 import { receiptHtml } from '@/lib/sale';
 import { useSyncState } from '@/lib/sync';
@@ -16,14 +19,28 @@ import { colors, font, spacing } from '@/theme';
 /** Comprobante: imprimir, guardar PDF o enviar por WhatsApp. */
 export default function Receipt() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { settings } = useAuth();
+  const { settings, user, can } = useAuth();
   const { online, pending } = useSyncState();
   const [sale, setSale] = useState<Sale | null>(null);
   const [status, setStatus] = useState<db.LocalSaleStatus>('PENDING');
   const [error, setError] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
+  const [voidReason, setVoidReason] = useState('');
+  const [voiding, setVoiding] = useState(false);
+
+  const loadLocal = useCallback(async () => {
+    const local = await store.getSale(id);
+    if (local) {
+      setSale(local);
+      setStatus('SYNCED');
+    }
+  }, [id]);
 
   useEffect(() => {
+    if (!SERVER_ENABLED) {
+      void loadLocal();
+      return;
+    }
     let alive = true;
     (async () => {
       const local = await db.getLocalSale(id);
@@ -47,7 +64,7 @@ export default function Receipt() {
     return () => {
       alive = false;
     };
-  }, [id, online, pending]);
+  }, [id, online, pending, loadLocal]);
 
   if (!sale || !settings) return <Loading />;
   const text = buildReceiptText(sale, settings, 32);
@@ -64,8 +81,9 @@ export default function Receipt() {
 
   return (
     <Screen>
+      {sale.status === 'VOIDED' && <Banner tone="danger" text="Esta venta está ANULADA: el stock volvió y el fiado se descontó." />}
       <View style={styles.success}>
-        <Text style={styles.successTitle}>¡Venta registrada!</Text>
+        <Text style={styles.successTitle}>{sale.status === 'VOIDED' ? `Venta N° ${sale.number}` : '¡Venta registrada!'}</Text>
         <Text style={styles.successAmount}>{formatSoles(sale.totalCents)}</Text>
         {sale.changeCents > 0 && <Text style={styles.change}>Vuelto: {formatSoles(sale.changeCents)}</Text>}
       </View>
@@ -93,6 +111,34 @@ export default function Receipt() {
         <Field label="Celular del cliente (opcional)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="987 654 321" />
         <Button label="Enviar por WhatsApp" icon="logo-whatsapp" variant="primary" onPress={whatsapp} />
         <Button label="Ir al inicio" variant="ghost" icon="home" onPress={() => router.dismissAll()} />
+        {!SERVER_ENABLED && can('sales.void') && sale.status !== 'VOIDED' && (
+          <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>
+            {voiding ? (
+              <>
+                <Field label="¿Por qué la anulas?" value={voidReason} onChangeText={setVoidReason} placeholder="Ej. se cobró dos veces" />
+                <Button
+                  label="Sí, anular esta venta"
+                  icon="close-circle"
+                  variant="danger"
+                  disabled={!voidReason.trim()}
+                  onPress={async () => {
+                    try {
+                      await store.voidSale(user!, sale.id, voidReason);
+                      setVoiding(false);
+                      await loadLocal();
+                    } catch (err) {
+                      setError(errorMessage(err));
+                    }
+                  }}
+                />
+                <Button label="No anular" variant="ghost" onPress={() => setVoiding(false)} />
+              </>
+            ) : (
+              <Button label="Anular venta" icon="close-circle" variant="ghost" onPress={() => setVoiding(true)} />
+            )}
+            {error && <Banner tone="danger" text={error} />}
+          </View>
+        )}
       </View>
     </Screen>
   );

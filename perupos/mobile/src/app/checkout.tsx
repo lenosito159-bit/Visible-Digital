@@ -16,6 +16,7 @@ import {
   defaultDocType,
   discountNeedsAdmin,
   formatSoles,
+  LocalError,
   lineTotal,
   parseSoles,
   qrAmount,
@@ -31,12 +32,15 @@ import {
 } from '@perupos/shared';
 import { AuthorizeModal } from '@/components/AuthorizeModal';
 import { CustomerPicker } from '@/components/CustomerPicker';
+import { ManualPaymentModal } from '@/components/ManualPaymentModal';
 import { QrPaymentModal } from '@/components/QrPaymentModal';
 import { Banner, Button, Chip, Field, Screen, type IconName } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cart, useCart } from '@/lib/cart';
+import { SERVER_ENABLED } from '@/lib/mode';
 import { buildLocalSale } from '@/lib/sale';
+import { store } from '@/lib/store';
 import { registerSale, useSyncState } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 
@@ -95,7 +99,8 @@ export default function Checkout() {
   const [saleId] = useState(() => Crypto.randomUUID());
   const regime = settings?.taxRegime ?? 'RMT';
 
-  const [docType, setDocType] = useState<DocType>(defaultDocType(regime));
+  // Sin servidor solo hay ticket interno: no es boleta ni factura de SUNAT.
+  const [docType, setDocType] = useState<DocType>(SERVER_ENABLED ? defaultDocType(regime) : 'TICKET');
   const [buyerDoc, setBuyerDoc] = useState('');
   const [buyerName, setBuyerName] = useState('');
   const [discountText, setDiscountText] = useState('');
@@ -105,6 +110,8 @@ export default function Checkout() {
   const [pickCustomer, setPickCustomer] = useState(false);
   const [authorize, setAuthorize] = useState<null | 'DISCOUNT' | 'CREDIT'>(null);
   const [qrLine, setQrLine] = useState<Line | null>(null);
+  /** Yape/Plin por confirmar a mano (el comerciante revisa su app). */
+  const [manualLine, setManualLine] = useState<Line | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -178,7 +185,7 @@ export default function Checkout() {
     };
   }, [docType, buyerDoc, online]);
 
-  const docTypes = allowedDocTypes(regime);
+  const docTypes: DocType[] = SERVER_ENABLED ? allowedDocTypes(regime) : ['TICKET'];
   const buyerDocType: IdentityDocType = docType === 'FACTURA' ? 'RUC' : buyerDoc.length === 11 ? 'RUC' : buyerDoc.length === 8 ? 'DNI' : buyerDoc ? 'CE' : 'NONE';
   const buyer = buyerDoc ? { docType: buyerDocType, docNumber: buyerDoc, name: buyerName } : undefined;
 
@@ -192,9 +199,9 @@ export default function Checkout() {
     if (needsDiscountAuth && !discountToken) return setAuthorize('DISCOUNT');
     if (credit?.exceedsLimit && user?.role !== 'ADMIN' && !creditToken) return setAuthorize('CREDIT');
 
-    // Cobros con QR pendientes: se muestran uno por uno.
+    // Yape/Plin por confirmar: uno por uno. Sin servidor, el comerciante revisa su app y confirma.
     const pendingQr = current.find((l) => QR_METHODS.includes(l.method) && !l.confirmation);
-    if (pendingQr) return setQrLine(pendingQr);
+    if (pendingQr) return SERVER_ENABLED ? setQrLine(pendingQr) : setManualLine(pendingQr);
 
     setSaving(true);
     try {
@@ -207,27 +214,30 @@ export default function Checkout() {
         customerId: customer?.id ?? null,
         docType,
         buyer,
-        authorizationToken: discountToken ?? creditToken ?? undefined,
+        authorizationToken: SERVER_ENABLED ? (discountToken ?? creditToken ?? undefined) : undefined,
       };
-      const local = buildLocalSale(input, cartLines, settings!, user!, customer?.name ?? null);
-      const sale = await registerSale(input, local);
+      // Sin servidor, discountToken/creditToken guardan el id del dueño que puso su PIN.
+      const sale = SERVER_ENABLED
+        ? await registerSale(input, buildLocalSale(input, cartLines, settings!, user!, customer?.name ?? null))
+        : await store.saveSale(input, user!, discountToken ?? creditToken);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       cart.clear();
       router.dismissTo('/pos');
       router.push(`/receipt/${sale.id}`);
     } catch (err) {
       setError(errorMessage(err));
-      if (err instanceof ApiError && err.code === 'LIMITE_CREDITO') setCreditToken(null);
+      if ((err instanceof ApiError || err instanceof LocalError) && err.code === 'LIMITE_CREDITO') setCreditToken(null);
     } finally {
       setSaving(false);
     }
   };
 
-  const onQrDone = (patch: Partial<Line>) => {
-    if (!qrLine) return;
-    const next = lines.map((l) => (l.key === qrLine.key ? { ...l, ...patch } : l));
+  const onQrDone = (patch: Partial<Line>, target: Line | null = qrLine) => {
+    if (!target) return;
+    const next = lines.map((l) => (l.key === target.key ? { ...l, ...patch } : l));
     setLines(next);
     setQrLine(null);
+    setManualLine(null);
     void pay(next);
   };
 
@@ -353,8 +363,10 @@ export default function Checkout() {
                     line.confirmation === 'QR'
                       ? 'Ya pagó por QR.'
                       : line.confirmation === 'MANUAL'
-                        ? `Ya te llegó (confirmado a mano${line.reference ? `, operación ${line.reference}` : ''}).`
-                        : online
+                        ? `Confirmado por ti: lo viste en tu app${line.reference ? ` (operación ${line.reference})` : ''}.`
+                        : !SERVER_ENABLED
+                          ? `Que te ${line.method === 'YAPE' ? 'yapee' : 'plinee'} ${formatSoles(line.overpay && tendered > amount ? tendered : amount)}. Al cobrar te preguntamos si ya te llegó.`
+                          : online
                           ? `Al cobrar sale un QR por ${formatSoles(line.overpay && tendered > amount ? tendered : amount)} que sirve para Yape y Plin.`
                           : 'No hay señal: que te yapee a tu QR del mostrador y revisa que te llegue.'
                   }
@@ -413,13 +425,13 @@ export default function Checkout() {
         />
       )}
 
-      {/* ---- Comprobante ---- */}
-      <Text style={[shared.sectionTitle, { marginTop: spacing.lg }]}>Comprobante</Text>
-      <View style={styles.methodRow}>
+      {/* ---- Comprobante (solo con el módulo de servidor) ---- */}
+      {SERVER_ENABLED && <Text style={[shared.sectionTitle, { marginTop: spacing.lg }]}>Comprobante</Text>}
+      {SERVER_ENABLED && <View style={styles.methodRow}>
         {docTypes.map((d) => (
           <Chip key={d} label={DOC_TYPE_LABELS[d]} selected={docType === d} onPress={() => setDocType(d)} />
         ))}
-      </View>
+      </View>}
       {(docType === 'FACTURA' || docType === 'BOLETA') && (
         <View style={{ marginTop: spacing.md }}>
           <Field
@@ -464,6 +476,15 @@ export default function Checkout() {
           setAuthorize(null);
         }}
       />
+      {manualLine && QR_METHODS.includes(manualLine.method) && (
+        <ManualPaymentModal
+          visible
+          method={manualLine.method as 'YAPE' | 'PLIN'}
+          amountCents={qrAmount(toPayments([manualLine])[0]!)}
+          onConfirm={(reference) => onQrDone({ confirmation: 'MANUAL', reference }, manualLine)}
+          onCancel={() => setManualLine(null)}
+        />
+      )}
       {qrLine && (
         <QrPaymentModal
           visible

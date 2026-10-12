@@ -18,6 +18,8 @@ export interface LocalBusiness {
   staleProductDays: number;
   creditAlertRatio: number;
   receiptFooter: string | null;
+  /** Negocio de demostración (datos de ejemplo). Se puede borrar entero. */
+  isDemo: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,6 +55,7 @@ interface BusinessRow {
   receipt_footer: string | null;
   recovery_hash: string;
   recovery_salt: string;
+  is_demo: number;
   created_at: string;
   updated_at: string;
 }
@@ -79,6 +82,7 @@ const toBusiness = (r: BusinessRow): LocalBusiness => ({
   staleProductDays: r.stale_product_days,
   creditAlertRatio: r.credit_alert_ratio,
   receiptFooter: r.receipt_footer,
+  isDemo: !!r.is_demo,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
@@ -144,6 +148,17 @@ export async function setupBusiness(
   input: SetupInput,
   now: Date = new Date(),
 ): Promise<{ business: LocalBusiness; owner: LocalUser; recoveryCode: string }> {
+  const prepared = await prepareSetup(c, input, now);
+  await db.transaction(() => insertSetup(db, prepared));
+  return {
+    business: (await getBusiness(db))!,
+    owner: { id: prepared.ownerId, name: prepared.ownerName, role: 'ADMIN', active: true },
+    recoveryCode: prepared.recoveryCode,
+  };
+}
+
+/** Valida y calcula todo lo que se guarda (fuera de la transacción: el hash es lento). */
+export async function prepareSetup(c: LocalCrypto, input: SetupInput, now: Date) {
   const businessName = cleanName(input.businessName, 'el nombre del negocio');
   const ownerName = cleanName(input.ownerName, 'tu nombre');
   validatePin(input.pin);
@@ -155,31 +170,36 @@ export async function setupBusiness(
     hashSecret(c, recoverySalt, recoveryCode),
     hashSecret(c, pinSalt, input.pin),
   ]);
-  const ts = now.toISOString();
-  const businessId = c.randomUUID();
-  const ownerId = c.randomUUID();
-
-  await db.transaction(async () => {
-    if (await db.get('SELECT id FROM business LIMIT 1')) {
-      throw new LocalError('YA_CONFIGURADO', 'Este celular ya tiene un negocio configurado.');
-    }
-    await db.run(
-      `INSERT INTO business (id, name, owner_name, phone, recovery_hash, recovery_salt, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      businessId, businessName, ownerName, phone, recoveryHash, recoverySalt, ts, ts,
-    );
-    await db.run(
-      `INSERT INTO local_users (id, name, role, pin_hash, pin_salt, created_at, updated_at)
-       VALUES (?, ?, 'ADMIN', ?, ?, ?, ?)`,
-      ownerId, ownerName, pinHash, pinSalt, ts, ts,
-    );
-  });
-
   return {
-    business: (await getBusiness(db))!,
-    owner: { id: ownerId, name: ownerName, role: 'ADMIN', active: true },
+    businessId: c.randomUUID(),
+    ownerId: c.randomUUID(),
+    businessName,
+    ownerName,
+    phone,
     recoveryCode,
+    recoveryHash,
+    recoverySalt,
+    pinHash,
+    pinSalt,
+    ts: now.toISOString(),
   };
+}
+
+/** Guarda el negocio y al dueño. Debe llamarse dentro de una transacción. */
+export async function insertSetup(db: LocalDb, s: Awaited<ReturnType<typeof prepareSetup>>): Promise<void> {
+  if (await db.get('SELECT id FROM business LIMIT 1')) {
+    throw new LocalError('YA_CONFIGURADO', 'Este celular ya tiene un negocio configurado.');
+  }
+  await db.run(
+    `INSERT INTO business (id, name, owner_name, phone, recovery_hash, recovery_salt, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    s.businessId, s.businessName, s.ownerName, s.phone, s.recoveryHash, s.recoverySalt, s.ts, s.ts,
+  );
+  await db.run(
+    `INSERT INTO local_users (id, name, role, pin_hash, pin_salt, created_at, updated_at)
+     VALUES (?, ?, 'ADMIN', ?, ?, ?, ?)`,
+    s.ownerId, s.ownerName, s.pinHash, s.pinSalt, s.ts, s.ts,
+  );
 }
 
 export interface BusinessPatch {

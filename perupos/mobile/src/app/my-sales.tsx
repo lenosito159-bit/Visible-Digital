@@ -6,6 +6,8 @@ import { describePayments, formatLimaDate, formatSoles, type Sale } from '@perup
 import { Banner, Empty, Screen, StatCard } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { SERVER_ENABLED } from '@/lib/mode';
+import { store } from '@/lib/store';
 import * as db from '@/lib/db';
 import { saleLabel } from '@/lib/sale';
 import { useSyncState } from '@/lib/sync';
@@ -24,6 +26,13 @@ export default function MySales() {
     useCallback(() => {
       if (!user) return;
       (async () => {
+        if (!SERVER_ENABLED) {
+          // Todo está en el celular: el dueño ve todas las ventas; el ayudante, las suyas.
+          const [sales, day] = await Promise.all([store.listSales(user), store.daySummary(user)]);
+          setRows(sales.map((sale) => ({ sale, status: 'SERVER' as const })));
+          setSummary(day);
+          return;
+        }
         const local = await db.listLocalSales(user.id, 100);
         const localRows: Row[] = local.map((l) => ({ sale: l.sale, status: l.status, error: l.error }));
         if (!online) return setRows(localRows);
@@ -47,11 +56,13 @@ export default function MySales() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           <StatCard label="Hoy" cents={summary.salesCents} tone={colors.primaryDark} icon="today" />
           <StatCard label="Ventas" value={String(summary.salesCount)} icon="receipt" />
-          <StatCard label="Efectivo" cents={summary.cashCents} icon="cash" />
-          <StatCard label="Yape/Plin/otros" cents={summary.digitalCents} icon="phone-portrait" tone={colors.yape} />
+          {(SERVER_ENABLED || user?.role === 'ADMIN') && <StatCard label="Efectivo" cents={summary.cashCents} icon="cash" />}
+          {(SERVER_ENABLED || user?.role === 'ADMIN') && (
+            <StatCard label="Yape/Plin/otros" cents={summary.digitalCents} icon="phone-portrait" tone={colors.yape} />
+          )}
         </View>
       )}
-      {!online && <Banner tone="warning" text="No hay señal: estas son las ventas guardadas en este celular." />}
+      {SERVER_ENABLED && !online && <Banner tone="warning" text="No hay señal: estas son las ventas guardadas en este celular." />}
       {rows.map(({ sale, status, error }) => (
         <Pressable key={sale.id} onPress={() => router.push(`/receipt/${sale.id}`)} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
           <View style={{ flex: 1 }}>

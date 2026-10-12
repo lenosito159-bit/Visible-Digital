@@ -5,6 +5,8 @@ import { formatSoles } from '@perupos/shared';
 import { Button, Screen, Tile } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { SERVER_ENABLED } from '@/lib/mode';
+import { store } from '@/lib/store';
 import { useSyncState } from '@/lib/sync';
 import { colors, font, spacing } from '@/theme';
 
@@ -17,10 +19,14 @@ export default function VendedorHome() {
 
   useFocusEffect(
     useCallback(() => {
+      if (!SERVER_ENABLED) {
+        if (user) void store.daySummary(user).then(setToday);
+        return;
+      }
       if (!online) return;
       api.get<{ salesCents: number; salesCount: number }>('/reports/summary').then(setToday).catch(() => {});
       api.get<{ read: boolean }[]>('/alerts').then((a) => setAlerts(a.filter((x) => !x.read).length)).catch(() => {});
-    }, [online]),
+    }, [online, user]),
   );
 
   return (
@@ -41,7 +47,7 @@ export default function VendedorHome() {
       </View>
       <View style={[styles.grid, { marginTop: spacing.md }]}>
         <Tile label="Caja" icon="wallet" onPress={() => router.push('/cash')} color="#374151" />
-        <Tile label="Alertas" icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />
+        {SERVER_ENABLED && <Tile label="Alertas" icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />}
       </View>
       <Button
         label="Salir"

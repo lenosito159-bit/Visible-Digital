@@ -6,7 +6,10 @@ import { database } from './db';
  * La lógica local de @perupos/shared sobre el SQLite del celular. Usa la
  * misma base (perupos.db) que abre initDb().
  */
-let depth = 0;
+// Las transacciones van en fila: expo-sqlite usa una sola conexión y dos
+// transacciones a la vez se mezclarían. La lógica de @perupos/shared nunca
+// abre una transacción dentro de otra (los tests lo verifican).
+let queue: Promise<unknown> = Promise.resolve();
 
 export const localDb: LocalDb = {
   async exec(sql) {
@@ -18,19 +21,17 @@ export const localDb: LocalDb = {
   },
   get: <T>(sql: string, ...params: SqlParam[]) => database().getFirstAsync<T>(sql, params),
   all: <T>(sql: string, ...params: SqlParam[]) => database().getAllAsync<T>(sql, params),
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    // Una transacción dentro de otra se une a la de afuera.
-    if (depth > 0) return fn();
-    depth++;
-    try {
+  transaction<T>(fn: () => Promise<T>): Promise<T> {
+    const run = queue.then(async () => {
       let out!: T;
+      // Si fn falla, expo-sqlite hace ROLLBACK y no queda nada a medias.
       await database().withTransactionAsync(async () => {
         out = await fn();
       });
       return out;
-    } finally {
-      depth--;
-    }
+    });
+    queue = run.catch(() => undefined);
+    return run;
   },
 };
 

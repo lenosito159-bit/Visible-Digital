@@ -24,8 +24,8 @@ export function nodeLocalDb(file = ':memory:'): LocalDb & { close(): void } {
       return db.prepare(sql).all(...params) as T[];
     },
     async transaction(fn) {
-      // Transacciones anidadas: solo la de afuera hace BEGIN/COMMIT.
-      if (depth > 0) return fn();
+      // En el celular las transacciones van en fila: una dentro de otra sería un error de la lógica.
+      if (depth > 0) throw new Error('Transacción dentro de otra transacción');
       depth++;
       db.exec('BEGIN');
       try {

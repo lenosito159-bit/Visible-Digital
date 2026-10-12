@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import { api, errorMessage } from '@/lib/api';
+import { SERVER_ENABLED } from '@/lib/mode';
+import { store } from '@/lib/store';
 import { useSyncState } from '@/lib/sync';
 import { colors, font, spacing } from '@/theme';
 import { NumPad, applyKey } from './NumPad';
 import { Banner, Button, Field } from './ui';
 
 /**
- * El dueño autoriza en el mismo teléfono: escribe su usuario y PIN.
- * Se usa para descuentos mayores a 10 % y fiados sobre el límite.
+ * El dueño autoriza en el mismo teléfono con su PIN. Se usa para descuentos
+ * mayores a 10 % y fiados sobre el límite. Sin servidor, `onAuthorized`
+ * recibe el id del dueño; con servidor, un token firmado.
  */
 export function AuthorizeModal({
   visible,
@@ -35,6 +38,13 @@ export function AuthorizeModal({
     setLoading(true);
     setError(null);
     try {
+      if (!SERVER_ENABLED) {
+        const local = await store.authorizeWithOwnerPin(pin);
+        setPin('');
+        if (local.ok) onAuthorized(local.ownerId, local.ownerName);
+        else setError(local.message);
+        return;
+      }
       const res = await api.post<{ authorizationToken: string; adminName: string }>('/auth/authorize', {
         username,
         secret: pin,
@@ -55,16 +65,16 @@ export function AuthorizeModal({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
-          <Text style={styles.title}>Autorización del Administrador</Text>
+          <Text style={styles.title}>{SERVER_ENABLED ? 'Autorización del Administrador' : 'Que el dueño ponga su PIN'}</Text>
           <Text style={styles.reason}>{reason}</Text>
-          {!online && <Banner tone="warning" text="No hay señal y el dueño no puede autorizar desde aquí. Cobra sin descuento o sin pasarte del límite de fiado." />}
-          <Field label="Usuario del Administrador" value={username} onChangeText={setUsername} autoCapitalize="none" />
+          {SERVER_ENABLED && !online && <Banner tone="warning" text="No hay señal y el dueño no puede autorizar desde aquí. Cobra sin descuento o sin pasarte del límite de fiado." />}
+          {SERVER_ENABLED && <Field label="Usuario del Administrador" value={username} onChangeText={setUsername} autoCapitalize="none" />}
           <Text style={styles.pin}>{pin ? '●'.repeat(pin.length) : 'PIN'}</Text>
           {error && <Banner tone="danger" text={error} />}
           <NumPad onKey={(k) => setPin((p) => applyKey(p, k, 8).replace('.', ''))} />
           <View style={styles.actions}>
             <Button label="Cancelar" variant="ghost" onPress={onClose} style={{ flex: 1 }} />
-            <Button label="Autorizar" icon="shield-checkmark" onPress={submit} loading={loading} disabled={pin.length < 4 || !online} style={{ flex: 1 }} />
+            <Button label="Autorizar" icon="shield-checkmark" onPress={submit} loading={loading} disabled={pin.length < 4 || (SERVER_ENABLED && !online)} style={{ flex: 1 }} />
           </View>
         </View>
       </View>

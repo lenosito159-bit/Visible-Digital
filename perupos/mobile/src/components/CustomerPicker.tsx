@@ -6,6 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { REPUTATION_LABELS, formatSoles, normalizePeruMobile, type Customer, type CustomerTreatment } from '@perupos/shared';
 import { useAuth } from '@/lib/auth';
 import * as db from '@/lib/db';
+import { errorMessage } from '@/lib/api';
+import { SERVER_ENABLED } from '@/lib/mode';
+import { store } from '@/lib/store';
 import { registerCustomer } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 import { Banner, Button, Chip, Field } from './ui';
@@ -62,7 +65,7 @@ export function CustomerPicker({
   onSelect: (c: Customer) => void;
   onlyWithDebt?: boolean;
 }) {
-  const { settings } = useAuth();
+  const { settings, user } = useAuth();
   const [search, setSearch] = useState('');
   const [list, setList] = useState<Customer[]>([]);
   const [creating, setCreating] = useState(false);
@@ -97,12 +100,19 @@ export function CustomerPicker({
       active: true,
       updatedAt: now,
     };
-    await registerCustomer({ id, name: customer.name, phone: customer.phone, docType: 'NONE', trato }, customer);
+    let saved = customer;
+    try {
+      if (SERVER_ENABLED) await registerCustomer({ id, name: customer.name, phone: customer.phone, docType: 'NONE', trato }, customer);
+      else if (user) saved = await store.newCustomer(user, { id, name: customer.name, phone: customer.phone, trato });
+    } catch (err) {
+      return setError(errorMessage(err));
+    }
+    setError(null);
     setCreating(false);
     setName('');
     setPhone('');
     setTrato(null);
-    onSelect(customer);
+    onSelect(saved);
   };
 
   return (

@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import {
   businessSettings,
   can,
+  endDemo as endLocalDemo,
+  setupDemo,
   getBusiness,
   migrateLocal,
   setupBusiness,
@@ -35,6 +37,10 @@ interface AuthContextValue {
   unlock: (userId: string, pin: string) => Promise<UnlockResult>;
   /** Volver a leer el negocio después de editarlo. */
   reloadBusiness: () => Promise<void>;
+  /** Modo demostración: negocio de ejemplo con 20 productos (PIN 1234). */
+  startDemo: () => Promise<void>;
+  /** Borra la demostración entera para configurar el negocio real. */
+  endDemo: () => Promise<void>;
   /** Solo con el módulo de servidor encendido. */
   login: (username: string, secret: string, role: Role) => Promise<void>;
   logout: () => Promise<void>;
@@ -116,6 +122,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setBusiness(await getBusiness(localDb));
   }, []);
 
+  const startDemo = useCallback(async () => {
+    const demo = await setupDemo(localDb, localCrypto);
+    setBusiness(demo.business);
+    setUser(toAppUser(demo.owner, demo.business.createdAt));
+  }, []);
+
+  const endDemo = useCallback(async () => {
+    await endLocalDemo(localDb);
+    setUser(null);
+    setBusiness(null);
+  }, []);
+
   const login = useCallback(async (username: string, secret: string, role: Role) => {
     if (!SERVER_ENABLED) throw new apiClient.ServerDisabledError();
     const session = await apiClient.login(username, secret, role);
@@ -150,10 +168,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setup,
       unlock,
       reloadBusiness,
+      startDemo,
+      endDemo,
       login,
       logout,
     }),
-    [ready, user, settings, business, setup, unlock, reloadBusiness, login, logout],
+    [ready, user, settings, business, setup, unlock, reloadBusiness, startDemo, endDemo, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

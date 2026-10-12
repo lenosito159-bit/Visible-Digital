@@ -27,7 +27,7 @@ export default function AdminProducts() {
 
   const header = (
     <View>
-      <Button label="Nuevo producto" icon="add-circle" variant="accent" onPress={() => router.push('/product-new')} />
+      <Button label="Nuevo producto" icon="add-circle" variant="accent" onPress={() => router.push({ pathname: '/product-new', params: { from: 'admin' } })} />
       <View style={{ height: spacing.md }} />
       <Field label="Buscar" value={search} onChangeText={setSearch} placeholder="Nombre o código" />
       <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
@@ -47,6 +47,9 @@ export default function AdminProducts() {
         initialNumToRender={15}
         windowSize={7}
         keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          search ? null : <Text style={[styles.meta, { textAlign: 'center', marginTop: spacing.lg }]}>Todavía no tienes productos. Toca "Nuevo producto" y pon su precio y cuántos tienes.</Text>
+        }
         renderItem={({ item: p }) => {
           const low = p.minStock > 0 && p.stock <= p.minStock;
           return (

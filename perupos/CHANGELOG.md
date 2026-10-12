@@ -1,5 +1,17 @@
 # Cambios de PeruPOS
 
+## 2026-10-12 — Rediseño, etapa 2: ventas, inventario, caja, fiados y abonos en el celular
+- **Nuevo:** todo se guarda en el celular sin servidor: productos con precio y stock, ingresos
+  de mercadería y conteos, ventas con pagos mixtos, fiados, abonos, caja y anulaciones.
+- **Nuevo:** Yape y Plin se confirman a mano ("¿Ya te llegó?") y quedan como confirmados por
+  el comerciante. Un pago marcado como verificado por QR se rechaza.
+- **Nuevo:** el dueño autoriza con su PIN en el mismo celular (fiado sobre el límite, descuento > 10 %).
+- **Nuevo:** modo demostración separado con los 20 productos de ejemplo; el negocio real
+  empieza con el catálogo vacío.
+- **Nuevo:** 28 tests: los 3 flujos de cobro, inventario, caja, fiados, abonos, fallas a la
+  mitad sin guardados parciales, reintentos sin duplicados y cerrar/volver a abrir.
+- Pendiente: ticket interno (etapa 3), informes (4), copia de seguridad (5).
+
 ## 2026-10-12 — Rediseño, etapa 1: base local y acceso sin servidor
 - **Nuevo:** la app abre sin servidor. La primera vez pide solo nombre del negocio, tu nombre y
   un PIN (celular opcional). Sin RUC, sin correo, sin internet.

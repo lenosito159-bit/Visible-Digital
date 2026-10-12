@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
-import type { AuthTokens, Role, User } from '@perupos/shared';
+import { LocalError, type AuthTokens, type Role, type User } from '@perupos/shared';
 import { SERVER_ENABLED } from './mode';
 
 /** URL del backend: EXPO_PUBLIC_API_URL o "extra.apiUrl" de app.json. */
@@ -176,6 +176,6 @@ export async function logout(): Promise<void> {
 
 /** Mensaje amable para cualquier error. */
 export function errorMessage(err: unknown): string {
-  if (err instanceof ApiError || err instanceof OfflineError) return err.message;
+  if (err instanceof ApiError || err instanceof OfflineError || err instanceof LocalError) return err.message;
   return 'Algo falló. Vuelve a intentar.';
 }

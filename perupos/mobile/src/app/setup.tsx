@@ -13,7 +13,7 @@ import { colors, font, spacing } from '@/theme';
  * PIN. Sin RUC, sin correo, sin internet. Todo queda en este celular.
  */
 export default function Setup() {
-  const { setup } = useAuth();
+  const { setup, startDemo } = useAuth();
   const [businessName, setBusinessName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
@@ -105,6 +105,26 @@ export default function Setup() {
           disabled={!businessName.trim() || !ownerName.trim() || pin.length < 4 || pin2.length < 4}
           onPress={() => void submit()}
         />
+        <View style={styles.demo}>
+          <Text style={styles.text}>¿Solo quieres probar la app primero?</Text>
+          <Button
+            label="Probar con datos de ejemplo"
+            icon="flask"
+            variant="ghost"
+            onPress={async () => {
+              setError(null);
+              try {
+                await startDemo();
+                router.replace('/');
+              } catch {
+                setError('No se pudo abrir la demostración. Vuelve a intentar.');
+              }
+            }}
+          />
+          <Text style={styles.small}>
+            Es una bodega de ejemplo con 20 productos y 3 clientes (PIN 1234). Cuando termines, la borras y preparas tu negocio.
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -117,5 +137,7 @@ const styles = StyleSheet.create({
   title: { fontSize: font.title, fontWeight: '900', color: colors.text, textAlign: 'center' },
   text: { fontSize: font.body, color: colors.textMuted, textAlign: 'center' },
   codeBox: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.accent, borderRadius: 16, padding: spacing.xl },
+  demo: { marginTop: spacing.xl, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, gap: spacing.sm },
+  small: { fontSize: font.small, color: colors.textMuted, textAlign: 'center' },
   code: { fontSize: font.huge, fontWeight: '900', letterSpacing: 4, textAlign: 'center', color: colors.text },
 });

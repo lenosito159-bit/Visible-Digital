@@ -13,11 +13,14 @@ import {
   type Customer,
 } from '@perupos/shared';
 import { CustomerPicker } from '@/components/CustomerPicker';
+import { ManualPaymentModal } from '@/components/ManualPaymentModal';
 import { QrPaymentModal } from '@/components/QrPaymentModal';
 import { Banner, Button, Chip, Field, Screen } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import * as db from '@/lib/db';
+import { SERVER_ENABLED } from '@/lib/mode';
+import { store } from '@/lib/store';
 import { registerAbono } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 
@@ -69,7 +72,7 @@ export default function Abono() {
         reference,
         createdAt: optimistic.createdAt,
       };
-      const result = await registerAbono(payload, optimistic);
+      const result = SERVER_ENABLED ? await registerAbono(payload, optimistic) : await store.saveAbono(payload, user);
       setReceipt(result);
     } catch (err) {
       setError(errorMessage(err));
@@ -98,6 +101,11 @@ export default function Abono() {
           <Text style={styles.boxLabel}>Abono registrado</Text>
           <Text style={[styles.big, { color: colors.primaryDark }]}>{formatSoles(receipt.amountCents)}</Text>
           <Text style={styles.boxLabel}>Saldo pendiente: {formatSoles(receipt.balanceCents)}</Text>
+          {receipt.method !== 'CASH' && receipt.method !== 'FIADO' && (
+            <Text style={styles.boxLabel}>
+              {receipt.method === 'PLIN' ? 'Plin' : 'Yape'} confirmado por ti en tu app
+            </Text>
+          )}
         </View>
         <View style={styles.paper}>
           <Text style={styles.mono}>{text}</Text>
@@ -146,7 +154,19 @@ export default function Abono() {
           setPicking(false);
         }}
       />
-      {showQr && (
+      {showQr && !SERVER_ENABLED && method !== 'CASH' && (
+        <ManualPaymentModal
+          visible
+          method={method}
+          amountCents={amountCents}
+          onConfirm={(reference) => {
+            setShowQr(false);
+            void save('MANUAL', undefined, reference);
+          }}
+          onCancel={() => setShowQr(false)}
+        />
+      )}
+      {showQr && SERVER_ENABLED && (
         <QrPaymentModal
           visible
           amountCents={amountCents}

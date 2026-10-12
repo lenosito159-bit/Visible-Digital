@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatSoles, type Category, type Product } from '@perupos/shared';
 import { CartPanel } from '@/components/CartPanel';
 import { ConnectionBar } from '@/components/ConnectionBar';
+import { DemoBar } from '@/components/DemoBar';
 import { ProductTile } from '@/components/ProductTile';
 import { Button, Chip, Empty, type IconName } from '@/components/ui';
 import { cart, cartTotals, useCart } from '@/lib/cart';
@@ -120,7 +121,7 @@ export default function Pos() {
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <View>
-            <Empty icon="search" text="No hay productos con ese nombre." />
+            <Empty icon={search ? 'search' : 'cube'} text={search ? 'No hay productos con ese nombre.' : 'Todavía no tienes productos. Crea el primero con su precio y cuántos tienes.'} />
             <Button label="Crear producto nuevo" icon="add-circle" variant="accent" onPress={() => router.push({ pathname: '/product-new', params: { name: search } })} />
           </View>
         }
@@ -132,6 +133,7 @@ export default function Pos() {
     return (
       <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
         <ConnectionBar />
+        <DemoBar />
         <View style={{ flex: 1, flexDirection: 'row' }}>
           <View style={{ width: width * 0.4, borderRightWidth: 1, borderRightColor: colors.border }}>
             <CartPanel icons={icons} onCheckout={checkout} />

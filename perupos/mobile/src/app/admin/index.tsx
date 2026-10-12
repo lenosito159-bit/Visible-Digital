@@ -5,6 +5,7 @@ import { Banner, Button, Screen, StatCard, Tile } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { SERVER_ENABLED } from '@/lib/mode';
+import { store } from '@/lib/store';
 import { useSyncState } from '@/lib/sync';
 import { colors, shared, spacing } from '@/theme';
 
@@ -21,17 +22,21 @@ interface Summary {
 
 /** Panel del dueño: cómo va el día y acceso a todo. */
 export default function AdminHome() {
-  const { user, settings, logout } = useAuth();
+  const { user, settings, business, logout, endDemo } = useAuth();
   const { online } = useSyncState();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [alerts, setAlerts] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
+      if (!SERVER_ENABLED) {
+        if (user) void store.daySummary(user).then((d) => setSummary({ ...d, averageTicketCents: 0 }));
+        return;
+      }
       if (!online) return;
       api.get<Summary>('/reports/summary').then(setSummary).catch(() => {});
       api.get<{ read: boolean }[]>('/alerts').then((a) => setAlerts(a.filter((x) => !x.read).length)).catch(() => {});
-    }, [online]),
+    }, [online, user]),
   );
 
   return (
@@ -51,16 +56,31 @@ export default function AdminHome() {
       )}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
         <Tile label="Vender" icon="cart" onPress={() => router.push('/pos')} />
-        <Tile label="Alertas" icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />
+        {SERVER_ENABLED && <Tile label="Alertas" icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />}
         <Tile label="Productos" icon="cube" onPress={() => router.push('/admin/products')} color={colors.secondary} />
         <Tile label="Clientes y fiados" icon="book" onPress={() => router.push('/customers')} color="#7C3AED" />
-        <Tile label="Reportes" icon="stats-chart" onPress={() => router.push('/admin/reports')} color="#0E7490" />
+        {SERVER_ENABLED && <Tile label="Reportes" icon="stats-chart" onPress={() => router.push('/admin/reports')} color="#0E7490" />}
         <Tile label="Caja" icon="wallet" onPress={() => router.push('/cash')} color="#374151" />
         <Tile label="Ventas" icon="receipt" onPress={() => router.push('/my-sales')} color="#1F2937" />
-        <Tile label="Usuarios" icon="people" onPress={() => router.push('/admin/users')} color="#4338CA" />
+        {SERVER_ENABLED && <Tile label="Usuarios" icon="people" onPress={() => router.push('/admin/users')} color="#4338CA" />}
         <Tile label="Mi negocio" icon="settings" subtitle={SERVER_ENABLED ? "RUC, Yape/Plin, cuentas" : "Nombre, PIN, fiado"} onPress={() => router.push('/admin/settings')} color="#475569" />
-        <Tile label="Tablero financiero" icon="analytics" onPress={() => router.push('/agente')} color="#6D28D9" />
+        {SERVER_ENABLED && <Tile label="Tablero financiero" icon="analytics" onPress={() => router.push('/agente')} color="#6D28D9" />}
+        {!SERVER_ENABLED && <Tile label="Fiados por cobrar" icon="alarm" onPress={() => router.push('/debts')} color="#92400E" />}
       </View>
+      {business?.isDemo && (
+        <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>
+          <Banner tone="warning" text="Estás en la demostración. Cuando quieras empezar con tu negocio, borra la demostración: se borran todos los datos de ejemplo." />
+          <Button
+            label="Borrar demostración y empezar mi negocio"
+            icon="trash"
+            variant="danger"
+            onPress={async () => {
+              await endDemo();
+              router.replace('/');
+            }}
+          />
+        </View>
+      )}
       <Button
         label={`Salir (${user?.name ?? ''})`}
         variant="ghost"

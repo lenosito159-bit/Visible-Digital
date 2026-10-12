@@ -14,6 +14,8 @@ import {
 import { Banner, Button, Chip, Field, Loading, Screen } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { SERVER_ENABLED } from '@/lib/mode';
+import { store } from '@/lib/store';
 import { useSyncState } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 
@@ -33,7 +35,7 @@ function Line({ label, cents, strong, negative }: { label: string; cents: number
 
 /** Caja del día: apertura, sacar/meter plata y cierre con arqueo y desglose por método. */
 export default function Cash() {
-  const { can, settings } = useAuth();
+  const { can, settings, user } = useAuth();
   const { online } = useSyncState();
   const [cash, setCash] = useState<CashSummary | null | undefined>(undefined);
   const [amount, setAmount] = useState('');
@@ -45,6 +47,10 @@ export default function Cash() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
+    if (!SERVER_ENABLED) {
+      store.currentCash().then(setCash).catch((e) => setError(errorMessage(e)));
+      return;
+    }
     if (!online) return setCash(undefined);
     api.get<CashSummary | null>('/cash/current').then(setCash).catch((e) => setError(errorMessage(e)));
   }, [online]);
@@ -68,7 +74,7 @@ export default function Cash() {
     void Linking.openURL(whatsappShareLink(buildCashCloseText(summary, settings)));
   };
 
-  if (!online) {
+  if (SERVER_ENABLED && !online) {
     return (
       <Screen>
         <Banner tone="warning" text="No hay señal. La caja se cuadra con las ventas de todos los celulares, así que necesita internet." />
@@ -106,7 +112,10 @@ export default function Cash() {
           icon="lock-open"
           big
           disabled={!can('cash.operate')}
-          onPress={async () => setCash(await run(() => api.post('/cash/open', { openingCents: parseSoles(amount) ?? 0 })))}
+          onPress={async () => {
+            const openingCents = parseSoles(amount) ?? 0;
+            setCash(await run(() => (SERVER_ENABLED ? api.post('/cash/open', { openingCents }) : store.openCash(user!, openingCents))));
+          }}
         />
       </Screen>
     );
@@ -163,7 +172,10 @@ export default function Cash() {
             variant="secondary"
             icon="create"
             onPress={async () => {
-              const next = await run(() => api.post('/cash/movements', { kind, amountCents: parseSoles(amount) ?? 0, reason }));
+              const amountCents = parseSoles(amount) ?? 0;
+              const next = await run(() =>
+                SERVER_ENABLED ? api.post('/cash/movements', { kind, amountCents, reason }) : store.cashMovement(user!, kind, amountCents, reason),
+              );
               if (next) setCash(next);
             }}
           />
@@ -171,7 +183,7 @@ export default function Cash() {
           <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Cierre del día</Text>
           <Field label="¿Cuánto contaste en el cajón? (S/)" value={counted} onChangeText={setCounted} keyboardType="decimal-pad" />
           <Field
-            label="¿Le yapeaste algo al administrador para cuadrar? (S/)"
+            label={SERVER_ENABLED ? '¿Le yapeaste algo al administrador para cuadrar? (S/)' : '¿Le yapeaste algo al dueño para cuadrar? (S/)'}
             value={transferred}
             onChangeText={setTransferred}
             keyboardType="decimal-pad"
@@ -190,7 +202,11 @@ export default function Cash() {
             big
             disabled={countedCents === null}
             onPress={async () => {
-              const result = await run(() => api.post('/cash/close', { countedCents: countedCents ?? 0, transferredCents }));
+              const result = await run(() =>
+                SERVER_ENABLED
+                  ? api.post('/cash/close', { countedCents: countedCents ?? 0, transferredCents })
+                  : store.closeCash(user!, countedCents ?? 0, transferredCents),
+              );
               if (result) {
                 setCounted('');
                 setTransferred('');

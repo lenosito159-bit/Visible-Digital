@@ -7,17 +7,27 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { parseSoles, type Category, type Product, type Unit } from '@perupos/shared';
 import { Banner, Button, Chip, Field, Screen, type IconName } from '@/components/ui';
+import { errorMessage } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { cart } from '@/lib/cart';
 import * as db from '@/lib/db';
+import { SERVER_ENABLED } from '@/lib/mode';
+import { keepPhoto, store } from '@/lib/store';
 import { registerProduct } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 
 /**
- * Alta rápida: nombre, precio, categoría y foto. Funciona sin internet.
- * Para platos preparados, el Admin puede cargar fotos de PeruFoodNet.
+ * Producto nuevo: nombre, precio, cuántos hay y (opcional) foto y código.
+ * Se guarda en el celular. Desde la venta, además se agrega al carrito.
  */
 export default function ProductNew() {
-  const params = useLocalSearchParams<{ barcode?: string; name?: string }>();
+  const params = useLocalSearchParams<{ barcode?: string; name?: string; from?: string }>();
+  const fromAdmin = params.from === 'admin';
+  const { user } = useAuth();
+  const [id] = useState(() => Crypto.randomUUID());
+  const [stock, setStock] = useState('');
+  const [minStock, setMinStock] = useState('');
+  const [barcode, setBarcode] = useState(params.barcode ?? '');
   const [name, setName] = useState(params.name ?? '');
   const [price, setPrice] = useState('');
   const [unit, setUnit] = useState<Unit>('UND');
@@ -45,8 +55,40 @@ export default function ProductNew() {
     const priceCents = parseSoles(price);
     if (name.trim().length < 2) return setError('Escribe el nombre del producto.');
     if (!priceCents) return setError('Escribe el precio. Ej: 3.50');
+    const stockQty = stock.trim() ? Number(stock.replace(',', '.')) : 0;
+    const minQty = minStock.trim() ? Number(minStock.replace(',', '.')) : 0;
+    if (!Number.isFinite(stockQty) || stockQty < 0 || !Number.isFinite(minQty) || minQty < 0) {
+      return setError('Revisa la cantidad: solo números.');
+    }
+    setError(null);
     setSaving(true);
-    const id = Crypto.randomUUID();
+    if (!SERVER_ENABLED) {
+      try {
+        // La foto se copia a la carpeta de la app con el id del producto (reintentos sin duplicar).
+        const imageUrl = photo ? await keepPhoto(photo, id) : null;
+        const saved = await store.newProduct(user!, {
+          id,
+          name,
+          priceCents,
+          stock: stockQty,
+          minStock: minQty,
+          unit,
+          barcode: barcode || null,
+          categoryId,
+          imageUrl,
+        });
+        if (fromAdmin) router.back();
+        else {
+          cart.add(saved);
+          router.dismissTo('/pos');
+        }
+      } catch (err) {
+        setError(errorMessage(err));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     const product: Product = {
       id,
       barcode: params.barcode ?? null,
@@ -72,7 +114,7 @@ export default function ProductNew() {
   };
 
   return (
-    <Screen footer={<Button label="Guardar y agregar a la venta" icon="checkmark-circle" big onPress={save} loading={saving} />}>
+    <Screen footer={<Button label={fromAdmin ? 'Guardar producto' : 'Guardar y agregar a la venta'} icon="checkmark-circle" big onPress={save} loading={saving} />}>
       {params.barcode ? <Banner tone="info" icon="barcode" text={`Código ${params.barcode} no registrado. Créalo ahora:`} /> : null}
       <View style={styles.photoRow}>
         <View style={styles.photo}>
@@ -90,7 +132,20 @@ export default function ProductNew() {
         <Chip label="Unidad" selected={unit === 'UND'} onPress={() => setUnit('UND')} icon="cube" />
         <Chip label="Kilo (a granel)" selected={unit === 'KG'} onPress={() => setUnit('KG')} icon="scale" />
       </View>
-      <Text style={shared.label}>Categoría</Text>
+      {!SERVER_ENABLED && (
+        <>
+          <View style={{ flexDirection: 'row', gap: spacing.md }}>
+            <View style={{ flex: 1 }}>
+              <Field label={unit === 'KG' ? '¿Cuántos kilos tienes?' : '¿Cuántos tienes ahora?'} value={stock} onChangeText={setStock} keyboardType="decimal-pad" placeholder="0" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Field label="Avisar cuando queden (opcional)" value={minStock} onChangeText={setMinStock} keyboardType="decimal-pad" placeholder="0" />
+            </View>
+          </View>
+          <Field label="Código de barras (opcional)" value={barcode} onChangeText={setBarcode} keyboardType="number-pad" />
+        </>
+      )}
+      {categories.length > 0 && <Text style={shared.label}>Categoría</Text>}
       <View style={styles.chips}>
         {categories.map((c) => (
           <Chip key={c.id} label={c.name} icon={c.icon as IconName} selected={categoryId === c.id} onPress={() => setCategoryId(c.id)} />

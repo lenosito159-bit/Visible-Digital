@@ -41,7 +41,8 @@ export function onDataChanged(fn: () => void): () => void {
     dataListeners.delete(fn);
   };
 }
-function emitDataChanged() {
+/** Avisa a las pantallas abiertas que algo cambió en la base del celular. */
+export function emitDataChanged() {
   dataListeners.forEach((l) => l());
 }
 

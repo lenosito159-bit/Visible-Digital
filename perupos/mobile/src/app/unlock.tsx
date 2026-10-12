@@ -49,6 +49,7 @@ export default function Unlock() {
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.brand}>{business?.name ?? 'PeruPOS'}</Text>
+        {business?.isDemo && <Banner tone="warning" text="Demostración con datos de ejemplo. El PIN es 1234." />}
         {users.length > 1 && (
           <View style={styles.users}>
             {users.map((u) => (

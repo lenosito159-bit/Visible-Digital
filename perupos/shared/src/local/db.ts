@@ -1,3 +1,6 @@
+import { can, type Permission } from '../permissions.js';
+import type { Role } from '../types.js';
+
 /**
  * Acceso a la base SQLite del celular. La app la implementa con expo-sqlite y
  * los tests con el SQLite de Node: así la misma lógica se prueba sin el teléfono.
@@ -29,4 +32,22 @@ export class LocalError extends Error {
   ) {
     super(message);
   }
+}
+
+/** Quién hace la operación (el usuario que entró con su PIN). */
+export interface Actor {
+  id: string;
+  name: string;
+  role: Role;
+}
+
+export function requirePermission(actor: Actor, permission: Permission, message: string): void {
+  if (!can(actor.role, permission)) throw new LocalError('SIN_PERMISO', message);
+}
+
+/** Inicio del día de hoy en Lima (UTC−5, sin horario de verano), en ISO. */
+export function limaDayStart(now: Date = new Date()): string {
+  const offset = 5 * 3_600_000;
+  const day = 86_400_000;
+  return new Date(Math.floor((now.getTime() - offset) / day) * day + offset).toISOString();
 }
