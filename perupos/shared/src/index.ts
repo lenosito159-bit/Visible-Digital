@@ -6,3 +6,4 @@ export * from './rules.js';
 export * from './validators.js';
 export * from './receipt.js';
 export * from './whatsapp.js';
+export * from './local/index.js';

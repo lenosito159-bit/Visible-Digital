@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Banner, Button, Chip, Field, Screen } from '@/components/ui';
 import { BarChart } from '@/components/Charts';
-import { API_URL, api, currentSession, errorMessage } from '@/lib/api';
+import { API_URL, ServerDisabledError, api, currentSession, errorMessage } from '@/lib/api';
+import { SERVER_ENABLED } from '@/lib/mode';
 import { colors, shared, spacing } from '@/theme';
 
 interface Bucket {
@@ -37,6 +38,8 @@ export default function Reports() {
 
   const exportSire = async () => {
     setMessage(null);
+    // El SIRE es parte del módulo de servidor (opcional): apagado no se pide nada a internet.
+    if (!SERVER_ENABLED) return setMessage({ tone: 'danger', text: new ServerDisabledError().message });
     try {
       const res = await fetch(`${API_URL}/reports/sire?period=${sirePeriod}`, {
         headers: { Authorization: `Bearer ${currentSession()?.accessToken}` },

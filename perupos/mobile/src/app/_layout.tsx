@@ -26,6 +26,8 @@ function RootStack() {
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="setup" options={{ headerShown: false }} />
+      <Stack.Screen name="unlock" options={{ headerShown: false }} />
       <Stack.Screen name="vendedor" options={{ title: 'PeruPOS' }} />
       <Stack.Screen name="pos" options={{ title: 'Nueva venta' }} />
       <Stack.Screen name="scanner" options={{ title: 'Escanear', presentation: 'fullScreenModal', headerShown: false }} />

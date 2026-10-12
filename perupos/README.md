@@ -1,5 +1,9 @@
 # PeruPOS
 
+> **En rediseño (todo en el celular, sin RUC ni servidor).** Lee primero [`REDISENO.md`](REDISENO.md).
+> Lo que sigue describe la versión anterior con servidor, que ahora es un módulo opcional y está apagado.
+
+
 App de ventas para **bodegas, minimarkets y puestos de mercado del Perú**. Se vende con el
 celular, se escanea el código de barras, se cobra **efectivo + Yape/Plin + fiado en la misma
 venta**, se lleva el **cuaderno de fiados** en el celular, se cuadra la caja y se emiten

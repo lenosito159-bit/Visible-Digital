@@ -49,7 +49,7 @@ export default function VendedorHome() {
         icon="log-out"
         onPress={async () => {
           await logout();
-          router.replace('/login');
+          router.replace('/');
         }}
         style={{ marginTop: spacing.xl }}
       />

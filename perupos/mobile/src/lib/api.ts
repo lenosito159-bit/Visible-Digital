@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import type { AuthTokens, Role, User } from '@perupos/shared';
+import { SERVER_ENABLED } from './mode';
 
 /** URL del backend: EXPO_PUBLIC_API_URL o "extra.apiUrl" de app.json. */
 export const API_URL = (
@@ -36,6 +37,14 @@ export class OfflineError extends Error {
   }
 }
 
+/** El módulo de servidor está apagado: no se envía nada, todo queda en el celular. */
+export class ServerDisabledError extends OfflineError {
+  constructor() {
+    super();
+    this.message = 'Esto todavía necesita el servidor, que está apagado. Tus datos siguen guardados en este celular.';
+  }
+}
+
 let session: Session | null = null;
 let onSessionExpired: (() => void) | null = null;
 
@@ -61,11 +70,16 @@ export function setSessionExpiredHandler(fn: (() => void) | null): void {
 
 export function imageUrl(path: string | null | undefined): string | null {
   if (!path) return null;
-  if (/^(https?:|file:|content:|data:)/.test(path)) return path;
+  if (/^(file:|content:|data:)/.test(path)) return path;
+  // Fotos guardadas en el servidor: solo con el módulo de servidor encendido.
+  if (!SERVER_ENABLED) return null;
+  if (/^https?:/.test(path)) return path;
   return `${API_URL}${path}`;
 }
 
 async function rawFetch(path: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  // Único punto de salida al servidor: apagado, ninguna pantalla puede enviar datos.
+  if (!SERVER_ENABLED) throw new ServerDisabledError();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

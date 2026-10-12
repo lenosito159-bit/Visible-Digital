@@ -1,5 +1,9 @@
 # Checklist de QA antes de merge
 
+> **En rediseño (todo en el celular, sin RUC ni servidor).** Lee primero [`REDISENO.md`](REDISENO.md).
+> Lo que sigue describe la versión anterior con servidor, que ahora es un módulo opcional y está apagado.
+
+
 Estado al 30/09/2026. Leyenda: ✅ verificado · 🟡 hecho pero sin probar en el mundo real ·
 ⬜ pendiente · ❌ no implementado.
 

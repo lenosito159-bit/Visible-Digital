@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { SERVER_ENABLED } from '@/lib/mode';
 import { syncNow, useSyncState } from '@/lib/sync';
 import { colors, font } from '@/theme';
 
@@ -8,6 +9,11 @@ import { colors, font } from '@/theme';
  * internet y cuántas operaciones faltan enviar. Tocarlo fuerza el envío.
  */
 export function ConnectionBar() {
+  // Sin servidor no hay nada que enviar: todo vive en el celular.
+  return SERVER_ENABLED ? <ServerConnectionBar /> : null;
+}
+
+function ServerConnectionBar() {
   const s = useSyncState();
   const pendingText = s.pending > 0 ? ` · ${s.pending} por enviar` : '';
   const failedText = s.failed > 0 ? ` · ${s.failed} no se pudieron enviar` : '';

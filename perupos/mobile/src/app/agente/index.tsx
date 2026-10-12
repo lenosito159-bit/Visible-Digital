@@ -192,7 +192,7 @@ export default function AgentDashboard() {
           style={{ marginTop: spacing.xl }}
           onPress={async () => {
             await logout();
-            router.replace('/login');
+            router.replace('/');
           }}
         />
       )}

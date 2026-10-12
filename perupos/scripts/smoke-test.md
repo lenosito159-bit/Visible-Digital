@@ -1,5 +1,8 @@
 # Prueba de humo en el celular (15 pasos)
 
+> **Esta prueba es de la versión con servidor**, que ahora está apagada por defecto. Durante el
+> rediseño (ver `REDISENO.md`) usa la prueba de la etapa en curso que está en ese archivo.
+
 Tiempo estimado: 40 minutos. Hazlo en un Android real (ideal: gama baja, tipo Redmi 9A o
 Samsung A0x) con el APK del perfil `preview`. Anota ✅ / ❌ y una foto de pantalla si algo falla.
 

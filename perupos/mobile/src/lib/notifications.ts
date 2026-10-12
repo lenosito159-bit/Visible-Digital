@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { PUSH_CHANNELS } from '@perupos/shared';
 import { api } from './api';
+import { SERVER_ENABLED } from './mode';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -19,6 +20,8 @@ Notifications.setNotificationHandler({
  * Agente Financiero (stock bajo, deudas vencidas, caja baja...).
  */
 export async function registerForPush(): Promise<void> {
+  // Las notificaciones por internet (Expo) son del módulo de servidor: apagado, no se pide token.
+  if (!SERVER_ENABLED) return;
   try {
     if (Platform.OS === 'android') {
       // Un canal por tipo de alerta: el tendero puede silenciar uno desde Ajustes sin perder los demás.

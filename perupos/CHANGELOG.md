@@ -1,5 +1,17 @@
 # Cambios de PeruPOS
 
+## 2026-10-12 — Rediseño, etapa 1: base local y acceso sin servidor
+- **Nuevo:** la app abre sin servidor. La primera vez pide solo nombre del negocio, tu nombre y
+  un PIN (celular opcional). Sin RUC, sin correo, sin internet.
+- **Nuevo:** código de recuperación de 10 números para cambiar el PIN si se olvida.
+- **Nuevo:** "Mi negocio" se edita en el celular (nombre, celular, mensaje del ticket, fiado
+  máximo, días de vencimiento, mínimo de caja) y se puede cambiar el PIN.
+- **Nuevo:** base local con migraciones (`shared/src/local/`) y 15 tests sobre SQLite.
+- **Cambiado:** el servidor queda apagado salvo `EXPO_PUBLIC_SERVER_ENABLED=true`. Apagado, la
+  app no hace llamadas a internet, ni pide token de notificaciones, ni carga fotos del servidor.
+- **Cambiado:** `mobile/eas.json` ya no lleva la IP de la PC: el APK no necesita servidor.
+- La pantalla anterior de "Mi negocio" (RUC, régimen, cuentas) pasa a `components/ServerSettings.tsx`.
+
 ## 2026-10-02 — Prueba de los 3 flujos por HTTP
 - **Nuevo:** `npm run test:flujos -- --base-de-prueba` prueba contra el servidor corriendo
   efectivo + Yape, efectivo + Yape + fiado y "te yapeo 40, dame el vuelto", más la caja del
