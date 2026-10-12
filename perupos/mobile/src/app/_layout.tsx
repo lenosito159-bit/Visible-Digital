@@ -33,7 +33,7 @@ function RootStack() {
       <Stack.Screen name="scanner" options={{ title: 'Escanear', presentation: 'fullScreenModal', headerShown: false }} />
       <Stack.Screen name="product-new" options={{ title: 'Producto nuevo' }} />
       <Stack.Screen name="checkout" options={{ title: 'Cobrar' }} />
-      <Stack.Screen name="receipt/[id]" options={{ title: 'Comprobante', headerBackVisible: false }} />
+      <Stack.Screen name="receipt/[id]" options={{ title: 'Ticket', headerBackVisible: false }} />
       <Stack.Screen name="my-sales" options={{ title: 'Mis ventas' }} />
       <Stack.Screen name="customers/index" options={{ title: 'Clientes' }} />
       <Stack.Screen name="customers/[id]" options={{ title: 'Cliente' }} />

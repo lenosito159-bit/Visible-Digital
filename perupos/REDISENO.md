@@ -23,7 +23,7 @@ PeruPOS pasa a ser una herramienta para que el pequeño comerciante organice su 
 |---|---|---|
 | 1 | Base local, acceso con PIN sin servidor, configuración mínima sin RUC | ✅ hecha |
 | 2 | Productos, inventario, ventas (efectivo, Yape/Plin confirmado manualmente, fiado), caja, fiados y abonos en el celular | ✅ hecha |
-| 3 | Ticket interno (sin RUC, "no es boleta ni factura") y Yape "confirmado manualmente" en ticket, caja e informes | ⬜ |
+| 3 | Ticket interno (sin RUC, "no es boleta ni factura") y Yape "confirmado manualmente" en ticket, caja e informes | ✅ hecha |
 | 4 | Informes y alertas en el celular, notificaciones locales | ⬜ |
 | 5 | Copia de seguridad y restauración desde archivo | ⬜ |
 | 6 | Aislar backend e integraciones como módulos opcionales; documentación final | ⬜ |
@@ -93,7 +93,6 @@ de la base del teléfono (con un PIN de 4 a 6 números se puede adivinar proband
 ## Lo que todavía NO está listo
 | Qué | Etapa |
 |---|---|
-| **Ticket:** todavía muestra "RUC", "Nuevo RUS" y "Canjeable por comprobante de pago", y no dice "Yape confirmado por ti". Debe decir que es un comprobante interno. | 3 |
 | Informes (por semana/mes), alertas de stock bajo y deudas vencidas, notificaciones | 4 |
 | **Copia de seguridad y restauración desde archivo** (hasta entonces, si se pierde el celular se pierden los datos) | 5 |
 | Pantalla para agregar ayudantes (la lógica ya está) | 4 |
@@ -103,22 +102,21 @@ de la base del teléfono (con un PIN de 4 a 6 números se puede adivinar proband
 Con el módulo de servidor encendido (`EXPO_PUBLIC_SERVER_ENABLED=true`), caja, productos y
 clientes usan igual la base del celular: ese modo se rehará en la etapa 6.
 
-## Prueba en un Android real (después de la etapa 2)
-Con el APK `preview` (no necesita servidor ni la IP de tu PC):
-1. Primera vez: nombre del negocio, tu nombre, PIN. Anota el código de recuperación.
-2. Productos → Nuevo producto: "Aceite Primor", S/ 10.90, hay 18. Otro: "Pan francés", S/ 0.30, hay 150.
-3. Caja → abrir con S/ 100.
-4. **Flujo (a):** vende S/ 50 → Efectivo S/ 20 recibido S/ 50 + Yape S/ 30. Al cobrar, "¿Ya te
-   llegó?" → "Sí". Vuelto S/ 30.
-5. **Flujo (b):** S/ 50 → Efectivo 10 (recibido 20) + Yape 20 + Fiado 20 a un cliente nuevo.
-   Vuelto S/ 10; el cliente debe S/ 20.
-6. **Flujo (c):** S/ 32 → Yape, "Me yapeó más: dar vuelto", te yapeó 40. Vuelto S/ 8 en efectivo.
-7. Abono de S/ 5 por Yape del cliente del paso 5 → debe S/ 15.
-8. Caja: debe decir 100 + 30 − 8 = S/ 122. Revisa que el stock bajó en Productos.
-9. **Cierra la app del todo** (quítala de recientes) y **apaga el celular**. Préndelo, entra con
-   el PIN y revisa: ventas, stock, deuda (S/ 15) y caja (S/ 122) siguen iguales.
-10. Modo avión todo el tiempo: nada de lo anterior necesita internet.
-11. Toca "Cobrar" dos veces seguidas rápido: debe quedar una sola venta.
+## Etapa 3 — ticket interno
+- **COMPROBANTE INTERNO** con "Venta N° 000001": nombre del negocio, celular (si lo puso),
+  fecha, quién atendió, cliente, productos, **TOTAL**, **CÓMO PAGÓ**, **VUELTO** y, si fió,
+  cuánto quedó debiendo de esa compra y su deuda total.
+- Yape y Plin: debajo de cada uno, **"Confirmado manualmente por el comerciante"** (y el N° de
+  operación si se puso). Si yapeó de más: "Yapeó S/ 40.00" y el vuelto.
+- Abajo: "Comprobante interno del negocio. No es boleta ni factura."
+- Sin RUC, régimen, IGV, SUNAT, "nota de venta" ni "canjeable" (un test lo revisa en texto y HTML).
+- Lo mismo en la constancia de abono ("Debía / Abonó / AHORA DEBE") y en el resumen de caja.
+- Cabe en 32 columnas (ticketera de 58 mm). El mismo contenido sale en texto (WhatsApp) y en
+  HTML (imprimir / PDF).
+- La lista de ventas muestra "Venta N° 000001" (antes "NV-000001").
+- El APK ya no permite conexiones `http://` salvo con el módulo de servidor encendido.
 
-**No uses esta versión en la tienda todavía:** falta la copia de seguridad (etapa 5) y el ticket
-interno (etapa 3).
+## Prueba en un Android real
+Instrucciones completas para construir, instalar y probar: [`PRUEBA-APK.md`](PRUEBA-APK.md).
+
+**No uses esta versión en la tienda todavía:** falta la copia de seguridad (etapa 5).

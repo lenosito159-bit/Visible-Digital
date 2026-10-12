@@ -4,7 +4,17 @@ import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { buildReceiptText, formatSoles, whatsappLink, whatsappShareLink, type Sale } from '@perupos/shared';
+import {
+  buildReceiptText,
+  formatSoles,
+  internalSaleTicket,
+  ticketHtml,
+  ticketText,
+  whatsappLink,
+  whatsappShareLink,
+  type LocalSale,
+  type Sale,
+} from '@perupos/shared';
 import { Banner, Button, Field, Loading, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -19,9 +29,9 @@ import { colors, font, spacing } from '@/theme';
 /** Comprobante: imprimir, guardar PDF o enviar por WhatsApp. */
 export default function Receipt() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { settings, user, can } = useAuth();
+  const { settings, user, can, business } = useAuth();
   const { online, pending } = useSyncState();
-  const [sale, setSale] = useState<Sale | null>(null);
+  const [sale, setSale] = useState<Sale | LocalSale | null>(null);
   const [status, setStatus] = useState<db.LocalSaleStatus>('PENDING');
   const [error, setError] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
@@ -67,12 +77,15 @@ export default function Receipt() {
   }, [id, online, pending, loadLocal]);
 
   if (!sale || !settings) return <Loading />;
-  const text = buildReceiptText(sale, settings, 32);
+  // Sin servidor: comprobante interno (sin RUC ni datos de SUNAT; Yape/Plin confirmados por el comerciante).
+  const lines = !SERVER_ENABLED && business ? internalSaleTicket(sale, business) : null;
+  const text = lines ? ticketText(lines, 32) : buildReceiptText(sale, settings, 32);
+  const html = lines ? ticketHtml(lines) : receiptHtml(sale, settings);
 
-  const print = () => Print.printAsync({ html: receiptHtml(sale, settings) }).catch(() => {});
+  const print = () => Print.printAsync({ html }).catch(() => {});
   const sharePdf = async () => {
-    const { uri } = await Print.printToFileAsync({ html: receiptHtml(sale, settings) });
-    await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Compartir comprobante' });
+    const { uri } = await Print.printToFileAsync({ html });
+    await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: lines ? 'Compartir ticket' : 'Compartir comprobante' });
   };
   const whatsapp = () => {
     const link = (phone && whatsappLink(phone, text)) || whatsappShareLink(text);

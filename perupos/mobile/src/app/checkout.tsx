@@ -227,6 +227,10 @@ export default function Checkout() {
     } catch (err) {
       setError(errorMessage(err));
       if ((err instanceof ApiError || err instanceof LocalError) && err.code === 'LIMITE_CREDITO') setCreditToken(null);
+      // N° de operación repetido o mal escrito: se vuelve a preguntar "¿Ya te llegó?" al cobrar.
+      if (err instanceof LocalError && (err.code === 'OPERACION_YA_USADA' || err.code === 'OPERACION_INVALIDA')) {
+        setLines((ls) => ls.map((l) => (l.confirmation === 'MANUAL' && l.reference ? { ...l, confirmation: undefined, reference: undefined } : l)));
+      }
     } finally {
       setSaving(false);
     }

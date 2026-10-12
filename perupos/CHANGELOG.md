@@ -1,5 +1,15 @@
 # Cambios de PeruPOS
 
+## 2026-10-12 — Rediseño, etapa 3: ticket interno
+- **Nuevo:** ticket "COMPROBANTE INTERNO" sin RUC, régimen ni SUNAT, con total, cómo pagó,
+  vuelto y lo fiado (de esta compra y deuda total). Termina con "No es boleta ni factura."
+- **Nuevo:** Yape y Plin dicen "Confirmado manualmente por el comerciante" en el ticket, la
+  constancia de abono y el resumen de caja.
+- **Nuevo:** `PRUEBA-APK.md`: construir el APK con EAS, instalarlo y 23 pasos de prueba.
+- **Cambiado:** la lista de ventas usa "Venta N° 000001"; el APK no permite `http://` sin el
+  módulo de servidor.
+- 8 tests nuevos del ticket.
+
 ## 2026-10-12 — Rediseño, etapa 2: ventas, inventario, caja, fiados y abonos en el celular
 - **Nuevo:** todo se guarda en el celular sin servidor: productos con precio y stock, ingresos
   de mercadería y conteos, ventas con pagos mixtos, fiados, abonos, caja y anulaciones.

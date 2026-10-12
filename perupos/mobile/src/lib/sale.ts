@@ -12,12 +12,14 @@ import {
   isElectronic,
   lineTotal,
   DOC_TYPE_LABELS,
+  saleNumber,
   type BusinessSettings,
   type Sale,
   type SaleInput,
   type User,
 } from '@perupos/shared';
 import type { CartLine } from './cart';
+import { SERVER_ENABLED } from './mode';
 
 /**
  * Arma en el teléfono la misma venta que registrará el servidor, para poder
@@ -91,7 +93,8 @@ export function buildLocalSale(
 /** Número a mostrar: el del comprobante si ya se sincronizó; si no, provisional. */
 export function saleLabel(sale: Sale): string {
   if (sale.number === 0) return 'Por enviar';
-  return documentNumber(sale);
+  // Sin servidor no hay series de SUNAT: solo el número interno de la venta.
+  return SERVER_ENABLED ? documentNumber(sale) : saleNumber(sale.number);
 }
 
 /** QR como SVG en texto (para el ticket impreso / PDF). */

@@ -252,7 +252,14 @@ interface PaymentRow {
 const SALE_SELECT =
   'SELECT s.*, c.name AS customer_name FROM sales s LEFT JOIN customers c ON c.id = s.customer_id';
 
-function toSale(row: SaleRow, items: ItemRow[], payments: PaymentRow[]): Sale & { voidedAt: string | null } {
+/** Venta guardada en el celular. */
+export type LocalSale = Sale & {
+  voidedAt: string | null;
+  /** Si fió: lo que el cliente quedó debiendo en total justo después de esta venta. */
+  fiadoBalanceAfterCents: number | null;
+};
+
+function toSale(row: SaleRow, items: ItemRow[], payments: PaymentRow[], fiadoBalanceAfterCents: number | null = null): LocalSale {
   return {
     id: row.id,
     number: row.number,
@@ -298,22 +305,27 @@ function toSale(row: SaleRow, items: ItemRow[], payments: PaymentRow[]): Sale & 
     buyerName: null,
     createdAt: row.created_at,
     voidedAt: row.voided_at,
+    fiadoBalanceAfterCents,
   };
 }
 
-export async function getSale(db: LocalDb, id: string): Promise<(Sale & { voidedAt: string | null }) | null> {
+export async function getSale(db: LocalDb, id: string): Promise<LocalSale | null> {
   const row = await db.get<SaleRow>(`${SALE_SELECT} WHERE s.id = ?`, id);
   if (!row) return null;
   const items = await db.all<ItemRow>('SELECT * FROM sale_items WHERE sale_id = ? ORDER BY position', id);
   const payments = await db.all<PaymentRow>('SELECT * FROM sale_payments WHERE sale_id = ? ORDER BY position', id);
-  return toSale(row, items, payments);
+  const fiado = await db.get<{ b: number }>(
+    "SELECT balance_after_cents AS b FROM credit_movements WHERE sale_id = ? AND kind = 'FIADO'",
+    id,
+  );
+  return toSale(row, items, payments, fiado?.b ?? null);
 }
 
 /** Ventas más recientes primero. `sellerId` para "Mis ventas" del ayudante. */
 export async function listSales(
   db: LocalDb,
   filter: { from?: string; to?: string; sellerId?: string; limit?: number } = {},
-): Promise<(Sale & { voidedAt: string | null })[]> {
+): Promise<LocalSale[]> {
   const where: string[] = [];
   const params: (string | number)[] = [];
   const add = (clause: string, value: string) => {

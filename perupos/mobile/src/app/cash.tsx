@@ -4,6 +4,8 @@ import { Linking, StyleSheet, Text, View } from 'react-native';
 import {
   PAYMENT_METHOD_LABELS,
   buildCashCloseText,
+  internalCashTicket,
+  ticketText,
   formatLimaDate,
   formatSoles,
   parseSoles,
@@ -35,7 +37,7 @@ function Line({ label, cents, strong, negative }: { label: string; cents: number
 
 /** Caja del día: apertura, sacar/meter plata y cierre con arqueo y desglose por método. */
 export default function Cash() {
-  const { can, settings, user } = useAuth();
+  const { can, settings, user, business } = useAuth();
   const { online } = useSyncState();
   const [cash, setCash] = useState<CashSummary | null | undefined>(undefined);
   const [amount, setAmount] = useState('');
@@ -71,7 +73,8 @@ export default function Cash() {
 
   const share = (summary: CashSummary) => {
     if (!settings) return;
-    void Linking.openURL(whatsappShareLink(buildCashCloseText(summary, settings)));
+    const text = !SERVER_ENABLED && business ? ticketText(internalCashTicket(summary, business)) : buildCashCloseText(summary, settings);
+    void Linking.openURL(whatsappShareLink(text));
   };
 
   if (SERVER_ENABLED && !online) {
@@ -145,6 +148,9 @@ export default function Cash() {
           <Line key={`a-${m}`} label={PAYMENT_METHOD_LABELS[m]} cents={cash.abonosByMethod[m]!} />
         ))}
         {cash.salesCount === 0 && <Text style={styles.small}>Todavía no hay ventas en este turno.</Text>}
+        {!SERVER_ENABLED && (cash.byMethod.YAPE || cash.byMethod.PLIN || cash.abonosByMethod.YAPE || cash.abonosByMethod.PLIN) ? (
+          <Text style={styles.small}>Yape y Plin: confirmados manualmente por el comerciante (revísalos en tu app).</Text>
+        ) : null}
       </View>
 
       <Text style={[shared.sectionTitle, { marginTop: spacing.lg }]}>Efectivo en el cajón</Text>

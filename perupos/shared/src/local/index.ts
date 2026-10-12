@@ -7,3 +7,4 @@ export * from './sales.js';
 export * from './abonos.js';
 export * from './cash.js';
 export * from './demo.js';
+export * from './ticket.js';

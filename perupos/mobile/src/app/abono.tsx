@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import {
   buildAbonoReceiptText,
+  internalAbonoTicket,
+  ticketText,
   formatSoles,
   parseSoles,
   whatsappLink,
@@ -29,14 +31,14 @@ type AbonoMethod = 'CASH' | 'YAPE' | 'PLIN';
 /** Abono: cliente → deuda → monto → cómo paga → constancia con saldo. */
 export default function Abono() {
   const params = useLocalSearchParams<{ customerId?: string }>();
-  const { user, settings } = useAuth();
+  const { user, settings, business } = useAuth();
   const [abonoId] = useState(() => Crypto.randomUUID());
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [picking, setPicking] = useState(!params.customerId);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<AbonoMethod>('CASH');
   const [showQr, setShowQr] = useState(false);
-  const [receipt, setReceipt] = useState<AbonoReceipt | null>(null);
+  const [receipt, setReceipt] = useState<(AbonoReceipt & { confirmation?: 'MANUAL' | null; reference?: string | null }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -90,7 +92,7 @@ export default function Abono() {
   };
 
   if (receipt && settings) {
-    const text = buildAbonoReceiptText(receipt, settings);
+    const text = !SERVER_ENABLED && business ? ticketText(internalAbonoTicket(receipt, business)) : buildAbonoReceiptText(receipt, settings);
     const share = () => {
       const link = (customer?.phone && whatsappLink(customer.phone, text)) || whatsappShareLink(text);
       void Linking.openURL(link);
@@ -103,7 +105,7 @@ export default function Abono() {
           <Text style={styles.boxLabel}>Saldo pendiente: {formatSoles(receipt.balanceCents)}</Text>
           {receipt.method !== 'CASH' && receipt.method !== 'FIADO' && (
             <Text style={styles.boxLabel}>
-              {receipt.method === 'PLIN' ? 'Plin' : 'Yape'} confirmado por ti en tu app
+              {receipt.method === 'PLIN' ? 'Plin' : 'Yape'}: confirmado manualmente por el comerciante
             </Text>
           )}
         </View>
