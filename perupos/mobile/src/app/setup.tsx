@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LocalError, formatRecoveryCode } from '@perupos/shared';
+import { RestorePanel } from '@/components/BackupPanel';
 import { Banner, Button, Field } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { colors, font, spacing } from '@/theme';
@@ -13,7 +14,8 @@ import { colors, font, spacing } from '@/theme';
  * PIN. Sin RUC, sin correo, sin internet. Todo queda en este celular.
  */
 export default function Setup() {
-  const { setup, startDemo } = useAuth();
+  const { setup, startDemo, reloadBusiness } = useAuth();
+  const [restoring, setRestoring] = useState(false);
   const [businessName, setBusinessName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
@@ -105,6 +107,20 @@ export default function Setup() {
           disabled={!businessName.trim() || !ownerName.trim() || pin.length < 4 || pin2.length < 4}
           onPress={() => void submit()}
         />
+        <View style={styles.demo}>
+          <Text style={styles.text}>¿Cambiaste o perdiste tu celular?</Text>
+          {restoring ? (
+            <RestorePanel
+              replacing={false}
+              onRestored={async () => {
+                await reloadBusiness();
+                router.replace('/');
+              }}
+            />
+          ) : (
+            <Button label="Recuperar mi negocio desde una copia" icon="refresh" variant="ghost" onPress={() => setRestoring(true)} />
+          )}
+        </View>
         <View style={styles.demo}>
           <Text style={styles.text}>¿Solo quieres probar la app primero?</Text>
           <Button

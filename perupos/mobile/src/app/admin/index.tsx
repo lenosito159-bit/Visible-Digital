@@ -5,6 +5,7 @@ import { Banner, Button, Screen, StatCard, Tile } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { SERVER_ENABLED } from '@/lib/mode';
+import { backupReminderText } from '@/lib/backup';
 import { store } from '@/lib/store';
 import { useSyncState } from '@/lib/sync';
 import { colors, shared, spacing } from '@/theme';
@@ -26,12 +27,14 @@ export default function AdminHome() {
   const { online } = useSyncState();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [alerts, setAlerts] = useState(0);
+  const [backupNote, setBackupNote] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       if (!SERVER_ENABLED) {
         if (user) void store.daySummary(user).then((d) => setSummary({ ...d, averageTicketCents: 0 }));
         void store.alerts().then((a) => setAlerts(a.length));
+        void backupReminderText().then(setBackupNote);
         return;
       }
       if (!online) return;
@@ -43,6 +46,12 @@ export default function AdminHome() {
   return (
     <Screen>
       <Text style={[shared.sectionTitle, { fontSize: 22 }]}>{settings?.nombreComercial || settings?.razonSocial || 'Mi negocio'}</Text>
+      {backupNote && (
+        <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+          <Banner tone="warning" icon="cloud-upload" text={backupNote} />
+          <Button label="Hacer copia ahora" icon="cloud-upload" variant="accent" onPress={() => router.push('/admin/settings')} />
+        </View>
+      )}
       {SERVER_ENABLED && !online && <Banner tone="warning" text="No hay señal: los números se actualizan cuando vuelva. Puedes seguir vendiendo." />}
       {summary && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>

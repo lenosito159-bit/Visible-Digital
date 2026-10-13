@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { LocalError, changePin, parseSoles, updateBusiness } from '@perupos/shared';
+import { router } from 'expo-router';
+import { BackupPanel } from '@/components/BackupPanel';
 import { ServerSettings } from '@/components/ServerSettings';
 import { Banner, Button, Field, Loading, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
@@ -16,7 +18,7 @@ export default function Settings() {
 
 /** Mi negocio, guardado en el celular: sin RUC ni datos tributarios. */
 function LocalSettings() {
-  const { business, user, reloadBusiness } = useAuth();
+  const { business, user, reloadBusiness, logout } = useAuth();
   const [form, setForm] = useState(() => ({
     name: business?.name ?? '',
     ownerName: business?.ownerName ?? '',
@@ -95,7 +97,22 @@ function LocalSettings() {
       {pinMessage && <Banner tone={pinMessage.tone} text={pinMessage.text} />}
       <Button label="Cambiar PIN" icon="key" variant="secondary" disabled={pins.current.length < 4 || pins.next.length < 4} onPress={() => void savePin()} />
 
-      <Text style={styles.note}>Todo se guarda solo en este celular. No se envía a ningún lado.</Text>
+      {user.role === 'ADMIN' && (
+        <>
+          <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Copia de seguridad</Text>
+          <BackupPanel
+            lastBackupAt={business.lastBackupAt}
+            onRestored={async () => {
+              // Lo recuperado tiene sus propios usuarios y PIN: se vuelve a entrar.
+              await reloadBusiness();
+              await logout();
+              router.replace('/');
+            }}
+          />
+        </>
+      )}
+
+      <Text style={styles.note}>Todo se guarda solo en este celular. No se envía a ningún lado si tú no lo compartes.</Text>
     </Screen>
   );
 }

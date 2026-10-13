@@ -39,7 +39,7 @@ npx eas-cli@latest build --platform android --profile preview
    Es normal: el APK de prueba no viene de Play Store.
 4. Ideal: un celular de gama baja (tipo Redmi 9A o Samsung A0x), que es el que usaría un tendero.
 
-## 3. Qué probar (≈40 min)
+## 3. Qué probar (≈1 hora)
 
 **Pon el celular en modo avión antes de abrir la app y déjalo así hasta el final.**
 Anota ✅ o ❌ en cada paso; si algo falla, toma captura y anota el número de paso.
@@ -114,16 +114,46 @@ Anota ✅ o ❌ en cada paso; si algo falla, toma captura y anota el número de 
 21. Bloquea (Salir). En la pantalla del PIN toca **Olvidé mi PIN**, escribe el código del
     paso 2 y pon un PIN nuevo. Entra con el nuevo.
 
+### Informes, avisos y ayudantes
+22. Inicio → **Informes** → "Hoy": vendido = suma de tus ventas de hoy; "Cómo te pagaron"
+    separa Efectivo, Yape (con la nota "confirmados manualmente"), Fiado. "Lo que más se vende".
+23. En Productos, pon costo S/ 9.30 al Aceite. En Informes aparece la **ganancia aproximada**
+    (3 aceites × S/ 1.60 = S/ 4.80) y cuánto de lo vendido no tiene costo anotado.
+24. **Avisos**: el Aceite (quedan 16, avisa en 5) no aparece. Corrige su stock a 3 con
+    "Conté el anaquel": debe salir **"Queda poco: Aceite Primor"** en Avisos y como
+    **notificación del celular** (acepta el permiso de notificaciones la primera vez).
+    Repón 24: el aviso desaparece.
+25. **Ayudantes** → agrega "Pepe" con PIN 1357. Sal y entra como Pepe: puede vender y abrir
+    Fiado/Abono/Caja, pero **no** ve Informes ni puede cambiar precios. Vuelve a entrar como dueño.
+
+### Copia de seguridad y recuperación (lo más importante antes de usarla en una tienda)
+26. **Quita el modo avión** solo para este paso. Mi negocio → **Hacer copia y guardarla** →
+    elige WhatsApp y mándatela a ti mismo (o guárdala en Drive). Anota cuántas ventas,
+    productos y clientes dice la copia. Vuelve a poner el modo avión.
+27. Recuperar desde una copia → elige **otro archivo** (una foto o un PDF): debe decir que **no
+    es una copia de PeruPOS** y no cambiar nada.
+28. **Desinstala la app** (todo lo del celular se borra). Vuelve a instalar el APK.
+29. En la primera pantalla: **Recuperar mi negocio desde una copia** → elige el archivo del
+    paso 26 (descárgalo de WhatsApp/Drive; para eso necesitas señal). Revisa el nombre del
+    negocio, la fecha y los números antes de confirmar.
+30. Entra con **tu PIN** (el que tenías al hacer la copia). Revisa que todo esté igual:
+    ventas y sus tickets (con "Confirmado manualmente por el comerciante"), stock, deuda de
+    Pedro (S/ 15.00), la caja como estaba al hacer la copia, la **foto** del Aceite y el
+    ayudante Pepe con su PIN.
+31. Haz una venta nueva: debe seguir la numeración (no volver a "Venta N° 000001").
+32. En otro celular (si tienes): instala el APK y recupera la misma copia. Debe quedar igual.
+
 ### Modo demostración (aparte)
-22. Esto **borra** tu negocio de prueba, así que hazlo al final: desinstala la app, vuelve a
+33. Esto **borra** tu negocio de prueba, así que hazlo al final: desinstala la app, vuelve a
     instalarla y en la primera pantalla toca **Probar con datos de ejemplo**. Debe abrir una
     bodega con 20 productos y una franja amarilla "DEMOSTRACIÓN" en todas las pantallas.
-23. Inicio → **Borrar demostración y empezar mi negocio**: vuelve a la primera pantalla, con
+34. Inicio → **Borrar demostración y empezar mi negocio**: vuelve a la primera pantalla, con
     el catálogo vacío.
 
 ## 4. Qué mandarme
 - La lista con ✅/❌ por número de paso.
-- Capturas de lo que falle y de un ticket de cada flujo (pasos 8, 9 y 10).
+- Capturas de lo que falle, de un ticket de cada flujo (pasos 8, 9 y 10) y de la pantalla
+  de recuperación (paso 29).
 - Modelo del celular y versión de Android.
 - Cualquier palabra que el tendero no entendería.
 

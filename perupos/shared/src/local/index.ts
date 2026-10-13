@@ -10,3 +10,4 @@ export * from './demo.js';
 export * from './ticket.js';
 export * from './reports.js';
 export * from './alerts.js';
+export * from './backup.js';

@@ -25,7 +25,7 @@ PeruPOS pasa a ser una herramienta para que el pequeño comerciante organice su 
 | 2 | Productos, inventario, ventas (efectivo, Yape/Plin confirmado manualmente, fiado), caja, fiados y abonos en el celular | ✅ hecha |
 | 3 | Ticket interno (sin RUC, "no es boleta ni factura") y Yape "confirmado manualmente" en ticket, caja e informes | ✅ hecha |
 | 4 | Informes y alertas en el celular, notificaciones locales | ✅ hecha (falta probar en el celular) |
-| 5 | Copia de seguridad y restauración desde archivo | ⬜ |
+| 5 | Copia de seguridad y restauración desde archivo | ✅ hecha (falta probar en el celular) |
 | 6 | Aislar backend e integraciones como módulos opcionales; documentación final | ⬜ |
 
 ## Cómo está hecho
@@ -93,7 +93,6 @@ de la base del teléfono (con un PIN de 4 a 6 números se puede adivinar proband
 ## Lo que todavía NO está listo
 | Qué | Etapa |
 |---|---|
-| **Copia de seguridad y restauración desde archivo** (hasta entonces, si se pierde el celular se pierden los datos) | 5 |
 | Categorías de productos (el catálogo funciona sin ellas) | más adelante |
 | Ocultar del todo el código del servidor y sus pantallas | 6 |
 
@@ -133,7 +132,30 @@ clientes usan igual la base del celular: ese modo se rehará en la etapa 6.
 - APK: permiso de notificaciones (Android 13+) declarado; micrófono y "mostrar sobre otras
   apps" bloqueados (la app no los usa).
 
+## Etapa 5 — copia de seguridad y recuperación
+- **Hacer copia** (Mi negocio): un archivo `.json` con todo el negocio (negocio, usuarios y sus
+  PIN cifrados, productos, stock e historial, clientes y cuaderno, ventas y pagos, caja) y las
+  fotos de los productos. Se abre el menú de compartir del celular para guardarla **fuera**
+  (WhatsApp a uno mismo, Drive, correo). La app no la sube a ningún lado.
+- Dentro de la app quedan las últimas 5 copias (no sirven si se pierde el celular).
+- **Recuperar**: en la primera pantalla de un celular nuevo ("Recuperar mi negocio desde una
+  copia") o en Mi negocio. Muestra negocio, fecha y cuántas ventas/productos/clientes trae
+  antes de confirmar. En Mi negocio pide confirmar dos veces y antes guarda lo actual
+  ("antes-de-recuperar").
+- Se entra con el PIN que había al hacer la copia; el código de recuperación sigue sirviendo.
+  La numeración de ventas sigue, y los N° de operación usados siguen bloqueados.
+- **Protecciones (probadas con tests):** huella SHA-256 del contenido: un archivo editado,
+  cortado, de otra app o de una versión más nueva **no se restaura**. La recuperación es una
+  sola transacción: si falla a la mitad, el celular queda **exactamente** como estaba.
+- **Recordatorio** en el inicio del dueño si nunca hizo copia o si pasó una semana (no en la
+  demostración).
+- **Con honestidad:** la copia **no va cifrada**: quien tenga el archivo puede leer los datos
+  del negocio y de los clientes (los PIN no, van con hash). La app no sabe si la copia se
+  guardó de verdad: solo que se abrió el menú de compartir.
+
 ## Prueba en un Android real
 Instrucciones completas para construir, instalar y probar: [`PRUEBA-APK.md`](PRUEBA-APK.md).
 
-**No uses esta versión en la tienda todavía:** falta la copia de seguridad (etapa 5).
+**No uses esta versión en una tienda** hasta que la prueba en el celular salga bien completa,
+incluida la recuperación de una copia de seguridad en un celular recién instalado. Que compile
+y pasen los tests no basta: los tests corren en el SQLite de Node, no en el teléfono.

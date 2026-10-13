@@ -176,6 +176,13 @@ export const LOCAL_MIGRATIONS: { version: number; name: string; sql: string }[] 
       );
     `,
   },
+  {
+    version: 4,
+    name: 'fecha de la última copia de seguridad',
+    sql: `
+      ALTER TABLE business ADD COLUMN last_backup_at TEXT;
+    `,
+  },
 ];
 
 export const LOCAL_SCHEMA_VERSION = LOCAL_MIGRATIONS[LOCAL_MIGRATIONS.length - 1]!.version;

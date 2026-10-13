@@ -1,5 +1,16 @@
 # Cambios de PeruPOS
 
+## 2026-10-13 — Rediseño, etapa 5: copia de seguridad y recuperación desde archivo
+- **Nuevo:** "Hacer copia y guardarla": archivo con todo el negocio y las fotos, que el
+  comerciante guarda donde quiera con el menú de compartir.
+- **Nuevo:** "Recuperar mi negocio desde una copia" en la primera pantalla y en Mi negocio,
+  con vista previa y confirmación; antes de reemplazar guarda lo actual.
+- **Nuevo:** huella SHA-256 (rechaza archivos dañados, cortados, ajenos o de una versión más
+  nueva) y recuperación en una sola transacción.
+- **Nuevo:** recordatorio de copia (nunca hecha o de hace más de 7 días).
+- 5 tests nuevos (recuperación completa en otro celular, reemplazo sin restos, archivos malos,
+  falla a la mitad, recordatorio). `PRUEBA-APK.md` con los pasos de copia y recuperación.
+
 ## 2026-10-13 — Rediseño, etapa 4: informes, avisos y ayudantes en el celular
 - **Nuevo:** informes por periodo (hoy, ayer, 7 días, mes, mes pasado): vendido, formas de
   pago, fiado y abonos, ganancia aproximada, lo más vendido y ventas por día.

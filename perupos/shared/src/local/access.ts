@@ -20,6 +20,8 @@ export interface LocalBusiness {
   receiptFooter: string | null;
   /** Negocio de demostración (datos de ejemplo). Se puede borrar entero. */
   isDemo: boolean;
+  /** Última copia de seguridad hecha o restaurada. */
+  lastBackupAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +58,7 @@ interface BusinessRow {
   recovery_hash: string;
   recovery_salt: string;
   is_demo: number;
+  last_backup_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +86,7 @@ const toBusiness = (r: BusinessRow): LocalBusiness => ({
   creditAlertRatio: r.credit_alert_ratio,
   receiptFooter: r.receipt_footer,
   isDemo: !!r.is_demo,
+  lastBackupAt: r.last_backup_at ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
