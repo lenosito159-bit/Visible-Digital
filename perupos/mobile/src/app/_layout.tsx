@@ -25,7 +25,6 @@ function RootStack() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="setup" options={{ headerShown: false }} />
       <Stack.Screen name="unlock" options={{ headerShown: false }} />
       <Stack.Screen name="vendedor" options={{ title: 'PeruPOS' }} />
@@ -47,8 +46,6 @@ function RootStack() {
       <Stack.Screen name="admin/users" options={{ title: 'Ayudantes' }} />
       <Stack.Screen name="admin/settings" options={{ title: 'Mi negocio' }} />
       <Stack.Screen name="admin/reports" options={{ title: 'Informes' }} />
-      <Stack.Screen name="agente/index" options={{ title: 'Agente Financiero' }} />
-      <Stack.Screen name="agente/send" options={{ title: 'Enviar recomendación', presentation: 'modal' }} />
     </Stack>
   );
 }

@@ -21,19 +21,16 @@ import {
   type ReminderTemplate,
 } from '@perupos/shared';
 import { Banner, Button, Chip, Field, Loading, Screen } from '@/components/ui';
-import { api, errorMessage } from '@/lib/api';
+import { errorMessage } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
-import { SERVER_ENABLED } from '@/lib/mode';
 import { store } from '@/lib/store';
 import * as db from '@/lib/db';
-import { syncNow, useSyncState } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 
 /** Ficha del cliente: lo que debe, hasta cuánto se le fía, su "cuaderno" y el recordatorio. */
 export default function CustomerDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { can, settings, user } = useAuth();
-  const { online } = useSyncState();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [ledger, setLedger] = useState<(CreditMovement & { confirmation?: 'MANUAL' | null })[] | null>(null);
   const [limit, setLimit] = useState('');
@@ -46,17 +43,8 @@ export default function CustomerDetail() {
       setCustomer(c);
       if (c) setLimit((c.creditLimitCents / 100).toFixed(2));
     });
-    if (!SERVER_ENABLED) {
-      void store.ledger(id).then(setLedger);
-    } else if (online) {
-      api
-        .get<{ customer: Customer; ledger: CreditMovement[] }>(`/customers/${id}`)
-        .then((r) => setLedger(r.ledger))
-        .catch(() => setLedger(null));
-    }
-  }, [id, online]);
-  // Con servidor solo se edita con señal; sin servidor, siempre (todo está en el celular).
-  const canEdit = !SERVER_ENABLED || online;
+    void store.ledger(id).then(setLedger);
+  }, [id]);
   useFocusEffect(reload);
 
   if (!customer) return <Loading />;
@@ -80,12 +68,7 @@ export default function CustomerDetail() {
   const update = async (patch: { trato?: CustomerTreatment; reputation?: CustomerReputation; creditLimitCents?: number }) => {
     setMessage(null);
     try {
-      if (SERVER_ENABLED) {
-        await api.patch(`/customers/${id}`, patch);
-        await syncNow();
-      } else if (user) {
-        await store.editCustomer(user, id, patch);
-      }
+      if (user) await store.editCustomer(user, id, patch);
       reload();
     } catch (err) {
       setMessage(errorMessage(err));
@@ -136,7 +119,6 @@ export default function CustomerDetail() {
           <Chip label="Siempre paga" icon="thumbs-up" color={colors.primaryDark} selected={customer.reputation === 'CUMPLIDO'} onPress={() => update({ reputation: customer.reputation === 'CUMPLIDO' ? null : 'CUMPLIDO' })} />
           <Chip label="Le cuesta pagar" icon="alert-circle" color={colors.danger} selected={customer.reputation === 'MOROSO'} onPress={() => update({ reputation: customer.reputation === 'MOROSO' ? null : 'MOROSO' })} />
         </View>
-        {!canEdit && <Text style={styles.meta}>Necesitas señal para cambiar estos datos.</Text>}
       </View>
       {message && <Banner tone="danger" text={message} />}
 
@@ -147,7 +129,6 @@ export default function CustomerDetail() {
             label="Guardar"
             variant="ghost"
             icon="save"
-            disabled={!canEdit}
             onPress={() => {
               const value = parseSoles(limit);
               if (value === null) return setMessage('Escribe un monto. Ej: 80');
@@ -158,7 +139,6 @@ export default function CustomerDetail() {
       )}
 
       <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Cuaderno de {customer.name.split(' ')[0]}</Text>
-      {SERVER_ENABLED && !online && <Banner tone="warning" text="Con señal se ve el cuaderno completo." />}
       {ledger?.length === 0 && <Text style={styles.meta}>Todavía no hay fiados ni abonos.</Text>}
       {ledger?.map((m) => (
         <View key={m.id} style={styles.movement}>

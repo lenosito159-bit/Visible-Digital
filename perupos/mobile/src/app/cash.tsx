@@ -3,7 +3,6 @@ import { useCallback, useState } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import {
   PAYMENT_METHOD_LABELS,
-  buildCashCloseText,
   internalCashTicket,
   ticketText,
   formatLimaDate,
@@ -14,11 +13,9 @@ import {
   type PaymentMethod,
 } from '@perupos/shared';
 import { Banner, Button, Chip, Field, Loading, Screen } from '@/components/ui';
-import { api, errorMessage } from '@/lib/api';
+import { errorMessage } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
-import { SERVER_ENABLED } from '@/lib/mode';
 import { store } from '@/lib/store';
-import { useSyncState } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 
 const METHODS: PaymentMethod[] = ['CASH', 'YAPE', 'PLIN', 'TRANSFER', 'CARD', 'FIADO'];
@@ -38,7 +35,6 @@ function Line({ label, cents, strong, negative }: { label: string; cents: number
 /** Caja del día: apertura, sacar/meter plata y cierre con arqueo y desglose por método. */
 export default function Cash() {
   const { can, settings, user, business } = useAuth();
-  const { online } = useSyncState();
   const [cash, setCash] = useState<CashSummary | null | undefined>(undefined);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -49,13 +45,8 @@ export default function Cash() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    if (!SERVER_ENABLED) {
-      store.currentCash().then(setCash).catch((e) => setError(errorMessage(e)));
-      return;
-    }
-    if (!online) return setCash(undefined);
-    api.get<CashSummary | null>('/cash/current').then(setCash).catch((e) => setError(errorMessage(e)));
-  }, [online]);
+    store.currentCash().then(setCash).catch((e) => setError(errorMessage(e)));
+  }, []);
   useFocusEffect(load);
 
   const run = async (fn: () => Promise<CashSummary>) => {
@@ -73,17 +64,11 @@ export default function Cash() {
 
   const share = (summary: CashSummary) => {
     if (!settings) return;
-    const text = !SERVER_ENABLED && business ? ticketText(internalCashTicket(summary, business)) : buildCashCloseText(summary, settings);
+    if (!business) return;
+    const text = ticketText(internalCashTicket(summary, business));
     void Linking.openURL(whatsappShareLink(text));
   };
 
-  if (SERVER_ENABLED && !online) {
-    return (
-      <Screen>
-        <Banner tone="warning" text="No hay señal. La caja se cuadra con las ventas de todos los celulares, así que necesita internet." />
-      </Screen>
-    );
-  }
   if (cash === undefined) return <Loading />;
 
   if (closed) {
@@ -117,7 +102,7 @@ export default function Cash() {
           disabled={!can('cash.operate')}
           onPress={async () => {
             const openingCents = parseSoles(amount) ?? 0;
-            setCash(await run(() => (SERVER_ENABLED ? api.post('/cash/open', { openingCents }) : store.openCash(user!, openingCents))));
+            setCash(await run(() => store.openCash(user!, openingCents)));
           }}
         />
       </Screen>
@@ -148,7 +133,7 @@ export default function Cash() {
           <Line key={`a-${m}`} label={PAYMENT_METHOD_LABELS[m]} cents={cash.abonosByMethod[m]!} />
         ))}
         {cash.salesCount === 0 && <Text style={styles.small}>Todavía no hay ventas en este turno.</Text>}
-        {!SERVER_ENABLED && (cash.byMethod.YAPE || cash.byMethod.PLIN || cash.abonosByMethod.YAPE || cash.abonosByMethod.PLIN) ? (
+        {(cash.byMethod.YAPE || cash.byMethod.PLIN || cash.abonosByMethod.YAPE || cash.abonosByMethod.PLIN) ? (
           <Text style={styles.small}>Yape y Plin: confirmados manualmente por el comerciante (revísalos en tu app).</Text>
         ) : null}
       </View>
@@ -179,9 +164,7 @@ export default function Cash() {
             icon="create"
             onPress={async () => {
               const amountCents = parseSoles(amount) ?? 0;
-              const next = await run(() =>
-                SERVER_ENABLED ? api.post('/cash/movements', { kind, amountCents, reason }) : store.cashMovement(user!, kind, amountCents, reason),
-              );
+              const next = await run(() => store.cashMovement(user!, kind, amountCents, reason));
               if (next) setCash(next);
             }}
           />
@@ -189,7 +172,7 @@ export default function Cash() {
           <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Cierre del día</Text>
           <Field label="¿Cuánto contaste en el cajón? (S/)" value={counted} onChangeText={setCounted} keyboardType="decimal-pad" />
           <Field
-            label={SERVER_ENABLED ? '¿Le yapeaste algo al administrador para cuadrar? (S/)' : '¿Le yapeaste algo al dueño para cuadrar? (S/)'}
+            label="¿Le yapeaste algo al dueño para cuadrar? (S/)"
             value={transferred}
             onChangeText={setTransferred}
             keyboardType="decimal-pad"
@@ -208,11 +191,7 @@ export default function Cash() {
             big
             disabled={countedCents === null}
             onPress={async () => {
-              const result = await run(() =>
-                SERVER_ENABLED
-                  ? api.post('/cash/close', { countedCents: countedCents ?? 0, transferredCents })
-                  : store.closeCash(user!, countedCents ?? 0, transferredCents),
-              );
+              const result = await run(() => store.closeCash(user!, countedCents ?? 0, transferredCents));
               if (result) {
                 setCounted('');
                 setTransferred('');

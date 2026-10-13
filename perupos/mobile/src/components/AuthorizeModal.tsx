@@ -1,62 +1,42 @@
 import { useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
-import { api, errorMessage } from '@/lib/api';
-import { SERVER_ENABLED } from '@/lib/mode';
+import { errorMessage } from '@/lib/errors';
 import { store } from '@/lib/store';
-import { useSyncState } from '@/lib/sync';
 import { colors, font, spacing } from '@/theme';
 import { NumPad, applyKey } from './NumPad';
-import { Banner, Button, Field } from './ui';
+import { Banner, Button } from './ui';
 
 /**
- * El dueño autoriza en el mismo teléfono con su PIN. Se usa para descuentos
- * mayores a 10 % y fiados sobre el límite. Sin servidor, `onAuthorized`
- * recibe el id del dueño; con servidor, un token firmado.
+ * El dueño autoriza en el mismo celular con su PIN. Se usa para descuentos
+ * mayores a 10 % y fiados sobre el límite que hace un ayudante.
+ * `onAuthorized` recibe el id del dueño.
  */
 export function AuthorizeModal({
   visible,
-  purpose,
-  saleId,
   reason,
   onClose,
   onAuthorized,
 }: {
   visible: boolean;
-  purpose: 'DISCOUNT' | 'CREDIT';
-  saleId: string;
   reason: string;
   onClose: () => void;
-  onAuthorized: (token: string, adminName: string) => void;
+  onAuthorized: (ownerId: string, ownerName: string) => void;
 }) {
-  const [username, setUsername] = useState('admin');
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { online } = useSyncState();
 
   const submit = async () => {
     setLoading(true);
     setError(null);
     try {
-      if (!SERVER_ENABLED) {
-        const local = await store.authorizeWithOwnerPin(pin);
-        setPin('');
-        if (local.ok) onAuthorized(local.ownerId, local.ownerName);
-        else setError(local.message);
-        return;
-      }
-      const res = await api.post<{ authorizationToken: string; adminName: string }>('/auth/authorize', {
-        username,
-        secret: pin,
-        purpose,
-        saleId,
-      });
-      setPin('');
-      onAuthorized(res.authorizationToken, res.adminName);
+      const result = await store.authorizeWithOwnerPin(pin);
+      if (result.ok) onAuthorized(result.ownerId, result.ownerName);
+      else setError(result.message);
     } catch (err) {
       setError(errorMessage(err));
-      setPin('');
     } finally {
+      setPin('');
       setLoading(false);
     }
   };
@@ -65,16 +45,14 @@ export function AuthorizeModal({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
-          <Text style={styles.title}>{SERVER_ENABLED ? 'Autorización del Administrador' : 'Que el dueño ponga su PIN'}</Text>
+          <Text style={styles.title}>Que el dueño ponga su PIN</Text>
           <Text style={styles.reason}>{reason}</Text>
-          {SERVER_ENABLED && !online && <Banner tone="warning" text="No hay señal y el dueño no puede autorizar desde aquí. Cobra sin descuento o sin pasarte del límite de fiado." />}
-          {SERVER_ENABLED && <Field label="Usuario del Administrador" value={username} onChangeText={setUsername} autoCapitalize="none" />}
           <Text style={styles.pin}>{pin ? '●'.repeat(pin.length) : 'PIN'}</Text>
           {error && <Banner tone="danger" text={error} />}
-          <NumPad onKey={(k) => setPin((p) => applyKey(p, k, 8).replace('.', ''))} />
+          <NumPad onKey={(k) => setPin((p) => applyKey(p, k, 6).replace('.', ''))} />
           <View style={styles.actions}>
             <Button label="Cancelar" variant="ghost" onPress={onClose} style={{ flex: 1 }} />
-            <Button label="Autorizar" icon="shield-checkmark" onPress={submit} loading={loading} disabled={pin.length < 4 || (SERVER_ENABLED && !online)} style={{ flex: 1 }} />
+            <Button label="Autorizar" icon="shield-checkmark" onPress={() => void submit()} loading={loading} disabled={pin.length < 4} style={{ flex: 1 }} />
           </View>
         </View>
       </View>

@@ -17,7 +17,7 @@ import {
   type BackupSummary,
 } from '@perupos/shared';
 import { localCrypto as c, localDb as db } from './localDb';
-import { emitDataChanged } from './sync';
+import { emitDataChanged } from './events';
 
 /**
  * Copia de seguridad en el celular:

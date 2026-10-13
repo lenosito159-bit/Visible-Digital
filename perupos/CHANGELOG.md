@@ -1,5 +1,20 @@
 # Cambios de PeruPOS
 
+## 2026-10-13 — Rediseño, etapa 6: código del servidor separado y documentación final
+- **Cambiado:** la app solo tiene código del celular. El cliente del servidor (login, cola de
+  envíos, QR de TAYPI, push, Agente Financiero, RUC/SIRE) pasó a `mobile/modulo-servidor/`
+  (no se compila ni va en el APK). El backend sigue en `backend/` con su propio README.
+- **Quitado del APK:** netinfo, secure-store, expo-device, qrcode; `http://` bloqueado siempre.
+- **Corregido:** crear un cliente con doble toque creaba dos.
+- **Documentación:** README, QA y PRUEBA-APK reescritos para la app en el celular; la prueba de
+  desinstalar y recuperar empieza con la demostración.
+
+## 2026-10-13 — Copias de seguridad con contraseña
+- **Nuevo:** la copia se cifra con una contraseña (mínimo 8 caracteres). Si se olvida, esa
+  copia no se puede abrir.
+- **Cambiado:** abrir el menú de compartir ya no cuenta como copia guardada; hay que
+  comprobarla abriéndola con su contraseña.
+
 ## 2026-10-13 — Rediseño, etapa 5: copia de seguridad y recuperación desde archivo
 - **Nuevo:** "Hacer copia y guardarla": archivo con todo el negocio y las fotos, que el
   comerciante guarda donde quiera con el menú de compartir.

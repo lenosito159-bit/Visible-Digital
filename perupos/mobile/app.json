@@ -36,12 +36,6 @@
       "expo-router",
       "expo-sqlite",
       [
-        "expo-secure-store",
-        {
-          "faceIDPermission": "PeruPOS guarda tu sesión de forma segura en este teléfono."
-        }
-      ],
-      [
         "expo-camera",
         {
           "cameraPermission": "PeruPOS usa la cámara para escanear códigos de barras y tomar fotos de productos.",
@@ -77,9 +71,7 @@
       ],
       "expo-dev-client"
     ],
-    "extra": {
-      "apiUrl": "http://192.168.1.50:3000"
-    },
+    "extra": {},
     "runtimeVersion": {
       "policy": "appVersion"
     },

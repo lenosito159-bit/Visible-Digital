@@ -3,21 +3,15 @@ import { StyleSheet, Text } from 'react-native';
 import { LocalError, changePin, parseSoles, updateBusiness } from '@perupos/shared';
 import { router } from 'expo-router';
 import { BackupPanel } from '@/components/BackupPanel';
-import { ServerSettings } from '@/components/ServerSettings';
 import { Banner, Button, Field, Loading, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { localCrypto, localDb } from '@/lib/localDb';
-import { SERVER_ENABLED } from '@/lib/mode';
 import { colors, font, shared, spacing } from '@/theme';
 
 const soles = (c: number) => (c / 100).toFixed(2);
 
-export default function Settings() {
-  return SERVER_ENABLED ? <ServerSettings /> : <LocalSettings />;
-}
-
 /** Mi negocio, guardado en el celular: sin RUC ni datos tributarios. */
-function LocalSettings() {
+export default function Settings() {
   const { business, user, reloadBusiness, logout } = useAuth();
   const [form, setForm] = useState(() => ({
     name: business?.name ?? '',

@@ -38,7 +38,7 @@ import {
 } from '@perupos/shared';
 import { localCrypto as c, localDb as db } from './localDb';
 import { notifyLocalAlerts } from './notifications';
-import { emitDataChanged } from './sync';
+import { emitDataChanged } from './events';
 
 /**
  * Operaciones del negocio guardadas en este celular (sin servidor).

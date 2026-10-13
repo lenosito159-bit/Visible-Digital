@@ -6,13 +6,12 @@ import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, us
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatSoles, type Category, type Product } from '@perupos/shared';
 import { CartPanel } from '@/components/CartPanel';
-import { ConnectionBar } from '@/components/ConnectionBar';
 import { DemoBar } from '@/components/DemoBar';
 import { ProductTile } from '@/components/ProductTile';
 import { Button, Chip, Empty, type IconName } from '@/components/ui';
 import { cart, cartTotals, useCart } from '@/lib/cart';
 import * as db from '@/lib/db';
-import { onDataChanged } from '@/lib/sync';
+import { onDataChanged } from '@/lib/events';
 import { colors, font, shared, spacing } from '@/theme';
 
 /**
@@ -132,7 +131,6 @@ export default function Pos() {
   if (wide) {
     return (
       <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-        <ConnectionBar />
         <DemoBar />
         <View style={{ flex: 1, flexDirection: 'row' }}>
           <View style={{ width: width * 0.4, borderRightWidth: 1, borderRightColor: colors.border }}>
@@ -146,7 +144,6 @@ export default function Pos() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <ConnectionBar />
       {grid}
       {lines.length > 0 && (
         <View style={styles.bottomBar}>

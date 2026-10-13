@@ -6,7 +6,7 @@ import { formatSoles, type Product } from '@perupos/shared';
 import { ProductImage } from '@/components/ProductTile';
 import { Button, Chip, Field, Screen } from '@/components/ui';
 import * as db from '@/lib/db';
-import { onDataChanged } from '@/lib/sync';
+import { onDataChanged } from '@/lib/events';
 import { colors, font, shared, spacing } from '@/theme';
 
 /** Catálogo del Admin: precios, stock y mínimos. */

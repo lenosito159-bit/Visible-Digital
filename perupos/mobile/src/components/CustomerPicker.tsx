@@ -6,10 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { REPUTATION_LABELS, formatSoles, normalizePeruMobile, type Customer, type CustomerTreatment } from '@perupos/shared';
 import { useAuth } from '@/lib/auth';
 import * as db from '@/lib/db';
-import { errorMessage } from '@/lib/api';
-import { SERVER_ENABLED } from '@/lib/mode';
+import { errorMessage } from '@/lib/errors';
 import { store } from '@/lib/store';
-import { registerCustomer } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 import { Banner, Button, Chip, Field } from './ui';
 
@@ -73,6 +71,7 @@ export function CustomerPicker({
   const [phone, setPhone] = useState('');
   const [trato, setTrato] = useState<CustomerTreatment>(null);
   const [error, setError] = useState<string | null>(null);
+  const [newId, setNewId] = useState(() => Crypto.randomUUID());
 
   useEffect(() => {
     if (!visible) return;
@@ -80,39 +79,22 @@ export function CustomerPicker({
   }, [visible, search, onlyWithDebt]);
 
   const create = async () => {
+    if (!user) return;
     if (name.trim().length < 2) return setError('Escribe el nombre.');
     if (phone && !normalizePeruMobile(phone)) return setError('El celular tiene 9 dígitos y empieza con 9.');
-    const id = Crypto.randomUUID();
-    const now = new Date().toISOString();
-    const customer: Customer = {
-      id,
-      name: name.trim(),
-      trato,
-      reputation: null,
-      phone: phone || null,
-      photoUrl: null,
-      docType: 'NONE',
-      docNumber: null,
-      creditLimitCents: settings?.defaultCreditLimitCents ?? 5000,
-      balanceCents: 0,
-      oldestDebtAt: null,
-      lastPaymentAt: null,
-      active: true,
-      updatedAt: now,
-    };
-    let saved = customer;
     try {
-      if (SERVER_ENABLED) await registerCustomer({ id, name: customer.name, phone: customer.phone, docType: 'NONE', trato }, customer);
-      else if (user) saved = await store.newCustomer(user, { id, name: customer.name, phone: customer.phone, trato });
+      // Mismo id mientras el formulario está abierto: un doble toque no crea dos clientes.
+      const saved = await store.newCustomer(user, { id: newId, name: name.trim(), phone: phone || null, trato });
+      setError(null);
+      setCreating(false);
+      setName('');
+      setPhone('');
+      setTrato(null);
+      setNewId(Crypto.randomUUID());
+      onSelect(saved);
     } catch (err) {
-      return setError(errorMessage(err));
+      setError(errorMessage(err));
     }
-    setError(null);
-    setCreating(false);
-    setName('');
-    setPhone('');
-    setTrato(null);
-    onSelect(saved);
   };
 
   return (

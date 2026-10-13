@@ -5,15 +5,12 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
-  DOC_TYPE_LABELS,
   PAYMENT_METHOD_LABELS,
   QR_METHODS,
   SELLER_MAX_DISCOUNT_PERCENT,
-  allowedDocTypes,
   checkCredit,
   checkPayments,
   computeTaxes,
-  defaultDocType,
   discountNeedsAdmin,
   formatSoles,
   LocalError,
@@ -22,10 +19,7 @@ import {
   qrAmount,
   quickCashOptions,
   rebalanceAmounts,
-  validateBuyer,
   type Customer,
-  type DocType,
-  type IdentityDocType,
   type PaymentInput,
   type PaymentMethod,
   type SaleInput,
@@ -33,15 +27,11 @@ import {
 import { AuthorizeModal } from '@/components/AuthorizeModal';
 import { CustomerPicker } from '@/components/CustomerPicker';
 import { ManualPaymentModal } from '@/components/ManualPaymentModal';
-import { QrPaymentModal } from '@/components/QrPaymentModal';
 import { Banner, Button, Chip, Field, Screen, type IconName } from '@/components/ui';
-import { ApiError, api, errorMessage } from '@/lib/api';
+import { errorMessage } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
 import { cart, useCart } from '@/lib/cart';
-import { SERVER_ENABLED } from '@/lib/mode';
-import { buildLocalSale } from '@/lib/sale';
 import { store } from '@/lib/store';
-import { registerSale, useSyncState } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 
 interface Line {
@@ -51,8 +41,8 @@ interface Line {
   tendered: string;
   /** Solo Yape/Plin: el cliente pagó más y se le da vuelto en efectivo. */
   overpay?: boolean;
-  confirmation?: 'QR' | 'MANUAL';
-  chargeId?: string;
+  /** Yape/Plin: el comerciante confirmó en su app que le llegó. */
+  confirmation?: 'MANUAL';
   reference?: string;
 }
 
@@ -85,7 +75,6 @@ function toPayments(lines: Line[]): PaymentInput[] {
       amountCents: cents(l.amount),
       tenderedCents: tendered,
       confirmation: l.confirmation,
-      chargeId: l.chargeId,
       reference: l.reference,
     };
   });
@@ -94,22 +83,14 @@ function toPayments(lines: Line[]): PaymentInput[] {
 /** Pantalla de cobro con pago mixto: efectivo + Yape/Plin + fiado en una sola venta. */
 export default function Checkout() {
   const { user, settings, can } = useAuth();
-  const { online } = useSyncState();
   const { lines: cartLines } = useCart();
   const [saleId] = useState(() => Crypto.randomUUID());
-  const regime = settings?.taxRegime ?? 'RMT';
-
-  // Sin servidor solo hay ticket interno: no es boleta ni factura de SUNAT.
-  const [docType, setDocType] = useState<DocType>(SERVER_ENABLED ? defaultDocType(regime) : 'TICKET');
-  const [buyerDoc, setBuyerDoc] = useState('');
-  const [buyerName, setBuyerName] = useState('');
   const [discountText, setDiscountText] = useState('');
   const [discountToken, setDiscountToken] = useState<string | null>(null);
   const [creditToken, setCreditToken] = useState<string | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [pickCustomer, setPickCustomer] = useState(false);
   const [authorize, setAuthorize] = useState<null | 'DISCOUNT' | 'CREDIT'>(null);
-  const [qrLine, setQrLine] = useState<Line | null>(null);
   /** Yape/Plin por confirmar a mano (el comerciante revisa su app). */
   const [manualLine, setManualLine] = useState<Line | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,10 +103,10 @@ export default function Checkout() {
       computeTaxes(
         cartLines.map((l) => ({ totalCents: lineTotal(l.product.priceCents, l.quantity), taxAffectation: l.product.taxAffectation })),
         discountCents,
-        regime,
-        settings?.igvRate,
+        // Comprobante interno: sin desglose de IGV.
+        'NRUS',
       ),
-    [cartLines, discountCents, regime, settings?.igvRate],
+    [cartLines, discountCents],
   );
   const total = taxes.totalCents;
 
@@ -144,7 +125,7 @@ export default function Checkout() {
 
   const updateLine = (key: string, patch: Partial<Line>) => {
     setLines((ls) => {
-      const reset = { confirmation: undefined, chargeId: undefined, reference: undefined };
+      const reset = { confirmation: undefined, reference: undefined };
       let next = ls.map((l) => (l.key === key ? { ...l, ...patch, ...(patch.method || patch.amount !== undefined || patch.tendered !== undefined || patch.overpay !== undefined ? reset : {}) } : l));
       // "20 en efectivo y el resto yapéame": el resto va al último método agregado.
       if (patch.amount !== undefined) {
@@ -166,42 +147,17 @@ export default function Checkout() {
     setLines((ls) => [...ls, { key: `l${Date.now()}`, method, amount: toText(remaining), tendered: '' }]);
   };
 
-  // Factura: se consulta el RUC en el padrón de SUNAT (copia del servidor) y se llena la razón social.
-  const [rucCheck, setRucCheck] = useState<{ ok: boolean; source: string; message: string; razonSocial: string | null } | null>(null);
-  useEffect(() => {
-    setRucCheck(null);
-    if (docType !== 'FACTURA' || buyerDoc.length !== 11 || !online) return;
-    let alive = true;
-    api
-      .get<{ ok: boolean; source: string; message: string; razonSocial: string | null }>(`/ruc/${buyerDoc}`)
-      .then((r) => {
-        if (!alive) return;
-        setRucCheck(r);
-        if (r.razonSocial) setBuyerName((name) => name || r.razonSocial!);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [docType, buyerDoc, online]);
-
-  const docTypes: DocType[] = SERVER_ENABLED ? allowedDocTypes(regime) : ['TICKET'];
-  const buyerDocType: IdentityDocType = docType === 'FACTURA' ? 'RUC' : buyerDoc.length === 11 ? 'RUC' : buyerDoc.length === 8 ? 'DNI' : buyerDoc ? 'CE' : 'NONE';
-  const buyer = buyerDoc ? { docType: buyerDocType, docNumber: buyerDoc, name: buyerName } : undefined;
-
   const pay = async (current: Line[] = lines) => {
     setError(null);
     const currentPayments = toPayments(current);
     const pre = checkPayments(total, currentPayments, { hasCustomer: !!customer, final: false });
     if (!pre.ok) return setError(pre.errors[0] ?? 'Revisa los montos.');
-    const buyerError = validateBuyer(docType, total, buyer);
-    if (buyerError) return setError(buyerError);
     if (needsDiscountAuth && !discountToken) return setAuthorize('DISCOUNT');
     if (credit?.exceedsLimit && user?.role !== 'ADMIN' && !creditToken) return setAuthorize('CREDIT');
 
     // Yape/Plin por confirmar: uno por uno. Sin servidor, el comerciante revisa su app y confirma.
     const pendingQr = current.find((l) => QR_METHODS.includes(l.method) && !l.confirmation);
-    if (pendingQr) return SERVER_ENABLED ? setQrLine(pendingQr) : setManualLine(pendingQr);
+    if (pendingQr) return setManualLine(pendingQr);
 
     setSaving(true);
     try {
@@ -212,21 +168,18 @@ export default function Checkout() {
         payments: currentPayments,
         discountCents,
         customerId: customer?.id ?? null,
-        docType,
-        buyer,
-        authorizationToken: SERVER_ENABLED ? (discountToken ?? creditToken ?? undefined) : undefined,
+        // Sin boleta ni factura: siempre comprobante interno.
+        docType: 'TICKET',
       };
-      // Sin servidor, discountToken/creditToken guardan el id del dueño que puso su PIN.
-      const sale = SERVER_ENABLED
-        ? await registerSale(input, buildLocalSale(input, cartLines, settings!, user!, customer?.name ?? null))
-        : await store.saveSale(input, user!, discountToken ?? creditToken);
+      // discountToken/creditToken guardan el id del dueño que puso su PIN.
+      const sale = await store.saveSale(input, user!, discountToken ?? creditToken);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       cart.clear();
       router.dismissTo('/pos');
       router.push(`/receipt/${sale.id}`);
     } catch (err) {
       setError(errorMessage(err));
-      if ((err instanceof ApiError || err instanceof LocalError) && err.code === 'LIMITE_CREDITO') setCreditToken(null);
+      if (err instanceof LocalError && err.code === 'LIMITE_CREDITO') setCreditToken(null);
       // N° de operación repetido o mal escrito: se vuelve a preguntar "¿Ya te llegó?" al cobrar.
       if (err instanceof LocalError && (err.code === 'OPERACION_YA_USADA' || err.code === 'OPERACION_INVALIDA')) {
         setLines((ls) => ls.map((l) => (l.confirmation === 'MANUAL' && l.reference ? { ...l, confirmation: undefined, reference: undefined } : l)));
@@ -236,11 +189,10 @@ export default function Checkout() {
     }
   };
 
-  const onQrDone = (patch: Partial<Line>, target: Line | null = qrLine) => {
+  const onQrDone = (patch: Partial<Line>, target: Line | null) => {
     if (!target) return;
     const next = lines.map((l) => (l.key === target.key ? { ...l, ...patch } : l));
     setLines(next);
-    setQrLine(null);
     setManualLine(null);
     void pay(next);
   };
@@ -267,7 +219,6 @@ export default function Checkout() {
       <View style={styles.totalBox}>
         <Text style={styles.totalLabel}>Total a pagar</Text>
         <Text style={styles.total}>{formatSoles(total)}</Text>
-        {regime !== 'NRUS' && taxes.igvCents > 0 && <Text style={styles.igv}>Incluye IGV {formatSoles(taxes.igvCents)}</Text>}
         {discountCents > 0 && <Text style={styles.igv}>Descuento {formatSoles(discountCents)} (antes {formatSoles(subtotalCents)})</Text>}
       </View>
 
@@ -364,15 +315,9 @@ export default function Checkout() {
                 <Banner
                   tone={line.confirmation ? 'success' : 'info'}
                   text={
-                    line.confirmation === 'QR'
-                      ? 'Ya pagó por QR.'
-                      : line.confirmation === 'MANUAL'
-                        ? `Confirmado por ti: lo viste en tu app${line.reference ? ` (operación ${line.reference})` : ''}.`
-                        : !SERVER_ENABLED
-                          ? `Que te ${line.method === 'YAPE' ? 'yapee' : 'plinee'} ${formatSoles(line.overpay && tendered > amount ? tendered : amount)}. Al cobrar te preguntamos si ya te llegó.`
-                          : online
-                          ? `Al cobrar sale un QR por ${formatSoles(line.overpay && tendered > amount ? tendered : amount)} que sirve para Yape y Plin.`
-                          : 'No hay señal: que te yapee a tu QR del mostrador y revisa que te llegue.'
+                    line.confirmation === 'MANUAL'
+                      ? `Confirmado por ti: lo viste en tu app${line.reference ? ` (operación ${line.reference})` : ''}.`
+                      : `Que te ${line.method === 'YAPE' ? 'yapee' : 'plinee'} ${formatSoles(line.overpay && tendered > amount ? tendered : amount)}. Al cobrar te preguntamos si ya te llegó.`
                   }
                 />
               </View>
@@ -391,7 +336,7 @@ export default function Checkout() {
                     tone={credit.exceedsLimit ? 'danger' : credit.nearLimit ? 'warning' : 'info'}
                     text={
                       credit.exceedsLimit
-                        ? `Supera su límite (${formatSoles(customer!.creditLimitCents)}). Deberá ${formatSoles(credit.newBalanceCents)}. ${creditToken ? 'Autorizado por el Administrador.' : 'Necesita autorización del Administrador.'}`
+                        ? `Supera su límite (${formatSoles(customer!.creditLimitCents)}). Deberá ${formatSoles(credit.newBalanceCents)}. ${creditToken ? 'Autorizado por el dueño.' : 'Necesita el PIN del dueño.'}`
                         : `Deberá ${formatSoles(credit.newBalanceCents)} de ${formatSoles(customer!.creditLimitCents)}.`
                     }
                   />
@@ -425,34 +370,8 @@ export default function Checkout() {
       {needsDiscountAuth && (
         <Banner
           tone={discountToken ? 'success' : 'warning'}
-          text={discountToken ? 'Descuento autorizado por el Administrador.' : `Más de ${SELLER_MAX_DISCOUNT_PERCENT}% necesita autorización del Administrador.`}
+          text={discountToken ? 'Descuento autorizado por el dueño.' : `Más de ${SELLER_MAX_DISCOUNT_PERCENT}% necesita el PIN del dueño.`}
         />
-      )}
-
-      {/* ---- Comprobante (solo con el módulo de servidor) ---- */}
-      {SERVER_ENABLED && <Text style={[shared.sectionTitle, { marginTop: spacing.lg }]}>Comprobante</Text>}
-      {SERVER_ENABLED && <View style={styles.methodRow}>
-        {docTypes.map((d) => (
-          <Chip key={d} label={DOC_TYPE_LABELS[d]} selected={docType === d} onPress={() => setDocType(d)} />
-        ))}
-      </View>}
-      {(docType === 'FACTURA' || docType === 'BOLETA') && (
-        <View style={{ marginTop: spacing.md }}>
-          <Field
-            label={docType === 'FACTURA' ? 'RUC del cliente' : 'DNI del cliente (obligatorio si pasa de S/ 700)'}
-            value={buyerDoc}
-            onChangeText={(t) => setBuyerDoc(t.replace(/\D/g, ''))}
-            keyboardType="number-pad"
-            maxLength={docType === 'FACTURA' ? 11 : 12}
-          />
-          {rucCheck && (
-            <Banner
-              tone={rucCheck.source === 'NO_VERIFICADO' ? 'info' : rucCheck.ok ? 'success' : 'warning'}
-              text={rucCheck.message}
-            />
-          )}
-          {buyerDoc ? <Field label={docType === 'FACTURA' ? 'Razón social' : 'Nombre'} value={buyerName} onChangeText={setBuyerName} /> : null}
-        </View>
       )}
 
       <CustomerPicker
@@ -466,8 +385,6 @@ export default function Checkout() {
       />
       <AuthorizeModal
         visible={authorize !== null}
-        purpose={authorize ?? 'DISCOUNT'}
-        saleId={saleId}
         reason={
           authorize === 'CREDIT'
             ? `${customer?.name ?? 'El cliente'} superaría su límite de fiado.`
@@ -487,16 +404,6 @@ export default function Checkout() {
           amountCents={qrAmount(toPayments([manualLine])[0]!)}
           onConfirm={(reference) => onQrDone({ confirmation: 'MANUAL', reference }, manualLine)}
           onCancel={() => setManualLine(null)}
-        />
-      )}
-      {qrLine && (
-        <QrPaymentModal
-          visible
-          amountCents={qrAmount(toPayments([qrLine])[0]!)}
-          reference={saleId}
-          onPaid={(chargeId) => onQrDone({ confirmation: 'QR', chargeId })}
-          onManual={(reference) => onQrDone({ confirmation: 'MANUAL', reference })}
-          onCancel={() => setQrLine(null)}
         />
       )}
       {!can('sales.create') && <Banner tone="danger" text="Tu rol no puede registrar ventas." />}

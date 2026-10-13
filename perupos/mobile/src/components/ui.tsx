@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatSoles } from '@perupos/shared';
 import { colors, font, shared, spacing, TOUCH } from '@/theme';
-import { ConnectionBar } from './ConnectionBar';
 import { DemoBar } from './DemoBar';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -155,7 +154,6 @@ export function Screen({
   const content = padded ? <View style={styles.padded}>{children}</View> : children;
   return (
     <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <ConnectionBar />
       <DemoBar />
       {scroll ? (
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: spacing.xxl }}>

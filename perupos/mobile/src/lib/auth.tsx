@@ -3,10 +3,10 @@ import {
   businessSettings,
   can,
   endDemo as endLocalDemo,
-  setupDemo,
   getBusiness,
   migrateLocal,
   setupBusiness,
+  setupDemo,
   toAppUser,
   unlock as unlockLocal,
   type BusinessSettings,
@@ -17,14 +17,14 @@ import {
   type UnlockResult,
   type User,
 } from '@perupos/shared';
-import * as apiClient from './api';
 import * as db from './db';
 import { localCrypto, localDb } from './localDb';
-import { SERVER_ENABLED } from './mode';
-import { registerForPush } from './notifications';
 import { checkAlerts } from './store';
-import { startSyncLoop, syncNow, onDataChanged } from './sync';
 
+/**
+ * Sesión en el celular: el negocio guardado y quién entró con su PIN.
+ * No hay cuentas ni servidor: al abrir la app siempre se pide el PIN.
+ */
 interface AuthContextValue {
   ready: boolean;
   user: User | null;
@@ -34,42 +34,24 @@ interface AuthContextValue {
   can: (permission: Permission) => boolean;
   /** Primera vez: crea el negocio y al dueño. Devuelve el código de recuperación. */
   setup: (input: SetupInput) => Promise<string>;
-  /** Entrar con PIN, sin servidor. */
+  /** Entrar con PIN. */
   unlock: (userId: string, pin: string) => Promise<UnlockResult>;
-  /** Volver a leer el negocio después de editarlo. */
+  /** Volver a leer el negocio después de editarlo o recuperar una copia. */
   reloadBusiness: () => Promise<void>;
   /** Modo demostración: negocio de ejemplo con 20 productos (PIN 1234). */
   startDemo: () => Promise<void>;
   /** Borra la demostración entera para configurar el negocio real. */
   endDemo: () => Promise<void>;
-  /** Solo con el módulo de servidor encendido. */
-  login: (username: string, secret: string, role: Role) => Promise<void>;
+  /** Salir (bloquear): se vuelve a pedir el PIN. */
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export interface RecentUser {
-  username: string;
-  name: string;
-  role: Role;
-}
-
-/** Usuarios que ya ingresaron en este teléfono: se muestran como botones en el login. */
-export async function recentUsers(): Promise<RecentUser[]> {
-  return (await db.getKv<RecentUser[]>('recentUsers')) ?? [];
-}
-
-async function rememberUser(user: User) {
-  const list = (await recentUsers()).filter((u) => u.username !== user.username);
-  await db.setKv('recentUsers', [{ username: user.username, name: user.name, role: user.role }, ...list].slice(0, 6));
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [business, setBusiness] = useState<LocalBusiness | null>(null);
-  const [serverSettings, setServerSettings] = useState<BusinessSettings | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -79,27 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const localBusiness = await getBusiness(localDb);
       if (!alive) return;
       setBusiness(localBusiness);
-      if (SERVER_ENABLED) {
-        const session = await apiClient.loadSession();
-        if (!alive) return;
-        // Con sesión guardada la app abre aunque no haya internet.
-        setUser(session?.user ?? null);
-        setServerSettings(await db.getSettings());
-        if (session) {
-          startSyncLoop();
-          void syncNow();
-          void registerForPush();
-        }
-      }
-      // Sin servidor la app siempre abre bloqueada: se entra con el PIN.
       setReady(true);
     })();
-    if (!SERVER_ENABLED) return () => void (alive = false);
-    apiClient.setSessionExpiredHandler(() => setUser(null));
-    const off = onDataChanged(() => void db.getSettings().then(setServerSettings));
     return () => {
       alive = false;
-      off();
     };
   }, []);
 
@@ -139,29 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setBusiness(null);
   }, []);
 
-  const login = useCallback(async (username: string, secret: string, role: Role) => {
-    if (!SERVER_ENABLED) throw new apiClient.ServerDisabledError();
-    const session = await apiClient.login(username, secret, role);
-    const previous = await db.getKv<string>('lastUserId');
-    // Otro usuario en el mismo teléfono: se baja todo el catálogo de nuevo.
-    if (previous && previous !== session.user.id) {
-      await db.setKv('lastPull', null);
-    }
-    await db.setKv('lastUserId', session.user.id);
-    await rememberUser(session.user);
-    startSyncLoop();
-    await syncNow();
-    setServerSettings(await db.getSettings());
-    setUser(session.user);
-    void registerForPush();
-  }, []);
-
   const logout = useCallback(async () => {
-    if (SERVER_ENABLED) await apiClient.logout();
     setUser(null);
   }, []);
 
-  const settings = SERVER_ENABLED ? serverSettings : business ? businessSettings(business) : null;
+  const settings = business ? businessSettings(business) : null;
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -175,10 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       reloadBusiness,
       startDemo,
       endDemo,
-      login,
       logout,
     }),
-    [ready, user, settings, business, setup, unlock, reloadBusiness, startDemo, endDemo, login, logout],
+    [ready, user, settings, business, setup, unlock, reloadBusiness, startDemo, endDemo, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -191,12 +137,11 @@ export function useAuth(): AuthContextValue {
 }
 
 /** Pantalla a la que va la app cuando no hay nadie adentro. */
-export function entryRoute(business: LocalBusiness | null): '/login' | '/setup' | '/unlock' {
-  if (SERVER_ENABLED) return '/login';
+export function entryRoute(business: LocalBusiness | null): '/setup' | '/unlock' {
   return business ? '/unlock' : '/setup';
 }
 
-/** Pantalla de inicio de cada rol. */
-export function homeFor(role: Role): '/vendedor' | '/admin' | '/agente' {
-  return role === 'ADMIN' ? '/admin' : role === 'AGENTE' ? '/agente' : '/vendedor';
+/** Pantalla de inicio de cada rol (en el celular: dueño o ayudante). */
+export function homeFor(role: Role): '/vendedor' | '/admin' {
+  return role === 'ADMIN' ? '/admin' : '/vendedor';
 }

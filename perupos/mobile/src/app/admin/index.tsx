@@ -2,45 +2,25 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Banner, Button, Screen, StatCard, Tile } from '@/components/ui';
-import { api } from '@/lib/api';
+import type { DaySummary } from '@perupos/shared';
 import { useAuth } from '@/lib/auth';
-import { SERVER_ENABLED } from '@/lib/mode';
 import { backupReminderText } from '@/lib/backup';
 import { store } from '@/lib/store';
-import { useSyncState } from '@/lib/sync';
 import { colors, shared, spacing } from '@/theme';
-
-interface Summary {
-  salesCents: number;
-  salesCount: number;
-  cashCents: number;
-  digitalCents: number;
-  fiadoCents: number;
-  abonosCents: number;
-  averageTicketCents: number;
-  cashInDrawerCents: number | null;
-}
 
 /** Panel del dueño: cómo va el día y acceso a todo. */
 export default function AdminHome() {
   const { user, settings, business, logout, endDemo } = useAuth();
-  const { online } = useSyncState();
-  const [summary, setSummary] = useState<Summary | null>(null);
+  const [summary, setSummary] = useState<DaySummary | null>(null);
   const [alerts, setAlerts] = useState(0);
   const [backupNote, setBackupNote] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
-      if (!SERVER_ENABLED) {
-        if (user) void store.daySummary(user).then((d) => setSummary({ ...d, averageTicketCents: 0 }));
-        void store.alerts().then((a) => setAlerts(a.length));
-        void backupReminderText().then(setBackupNote);
-        return;
-      }
-      if (!online) return;
-      api.get<Summary>('/reports/summary').then(setSummary).catch(() => {});
-      api.get<{ read: boolean }[]>('/alerts').then((a) => setAlerts(a.filter((x) => !x.read).length)).catch(() => {});
-    }, [online, user]),
+      if (user) void store.daySummary(user).then(setSummary);
+      void store.alerts().then((a) => setAlerts(a.length));
+      void backupReminderText().then(setBackupNote);
+    }, [user]),
   );
 
   return (
@@ -52,7 +32,6 @@ export default function AdminHome() {
           <Button label="Hacer copia ahora" icon="cloud-upload" variant="accent" onPress={() => router.push('/admin/settings')} />
         </View>
       )}
-      {SERVER_ENABLED && !online && <Banner tone="warning" text="No hay señal: los números se actualizan cuando vuelva. Puedes seguir vendiendo." />}
       {summary && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           <StatCard label="Ventas de hoy" cents={summary.salesCents} tone={colors.primaryDark} icon="trending-up" />
@@ -66,16 +45,15 @@ export default function AdminHome() {
       )}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
         <Tile label="Vender" icon="cart" onPress={() => router.push('/pos')} />
-        <Tile label={SERVER_ENABLED ? 'Alertas' : 'Avisos'} icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />
+        <Tile label="Avisos" icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />
         <Tile label="Productos" icon="cube" onPress={() => router.push('/admin/products')} color={colors.secondary} />
         <Tile label="Clientes y fiados" icon="book" onPress={() => router.push('/customers')} color="#7C3AED" />
-        <Tile label={SERVER_ENABLED ? 'Reportes' : 'Informes'} icon="stats-chart" onPress={() => router.push('/admin/reports')} color="#0E7490" />
+        <Tile label="Informes" icon="stats-chart" onPress={() => router.push('/admin/reports')} color="#0E7490" />
         <Tile label="Caja" icon="wallet" onPress={() => router.push('/cash')} color="#374151" />
         <Tile label="Ventas" icon="receipt" onPress={() => router.push('/my-sales')} color="#1F2937" />
-        <Tile label={SERVER_ENABLED ? 'Usuarios' : 'Ayudantes'} icon="people" onPress={() => router.push('/admin/users')} color="#4338CA" />
-        <Tile label="Mi negocio" icon="settings" subtitle={SERVER_ENABLED ? "RUC, Yape/Plin, cuentas" : "Nombre, PIN, fiado"} onPress={() => router.push('/admin/settings')} color="#475569" />
-        {SERVER_ENABLED && <Tile label="Tablero financiero" icon="analytics" onPress={() => router.push('/agente')} color="#6D28D9" />}
-        {!SERVER_ENABLED && <Tile label="Fiados por cobrar" icon="alarm" onPress={() => router.push('/debts')} color="#92400E" />}
+        <Tile label="Ayudantes" icon="people" onPress={() => router.push('/admin/users')} color="#4338CA" />
+        <Tile label="Mi negocio" icon="settings" subtitle="Nombre, PIN, copia de seguridad" onPress={() => router.push('/admin/settings')} color="#475569" />
+        <Tile label="Fiados por cobrar" icon="alarm" onPress={() => router.push('/debts')} color="#92400E" />
       </View>
       {business?.isDemo && (
         <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>

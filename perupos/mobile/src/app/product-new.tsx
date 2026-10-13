@@ -7,13 +7,11 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { parseSoles, type Category, type Product, type Unit } from '@perupos/shared';
 import { Banner, Button, Chip, Field, Screen, type IconName } from '@/components/ui';
-import { errorMessage } from '@/lib/api';
+import { errorMessage } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
 import { cart } from '@/lib/cart';
 import * as db from '@/lib/db';
-import { SERVER_ENABLED } from '@/lib/mode';
 import { keepPhoto, store } from '@/lib/store';
-import { registerProduct } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 
 /**
@@ -62,55 +60,30 @@ export default function ProductNew() {
     }
     setError(null);
     setSaving(true);
-    if (!SERVER_ENABLED) {
-      try {
-        // La foto se copia a la carpeta de la app con el id del producto (reintentos sin duplicar).
-        const imageUrl = photo ? await keepPhoto(photo, id) : null;
-        const saved = await store.newProduct(user!, {
-          id,
-          name,
-          priceCents,
-          stock: stockQty,
-          minStock: minQty,
-          unit,
-          barcode: barcode || null,
-          categoryId,
-          imageUrl,
-        });
-        if (fromAdmin) router.back();
-        else {
-          cart.add(saved);
-          router.dismissTo('/pos');
-        }
-      } catch (err) {
-        setError(errorMessage(err));
-      } finally {
-        setSaving(false);
+    try {
+      // La foto se copia a la carpeta de la app con el id del producto (reintentos sin duplicar).
+      const imageUrl = photo ? await keepPhoto(photo, id) : null;
+      const saved = await store.newProduct(user!, {
+        id,
+        name,
+        priceCents,
+        stock: stockQty,
+        minStock: minQty,
+        unit,
+        barcode: barcode || null,
+        categoryId,
+        imageUrl,
+      });
+      if (fromAdmin) router.back();
+      else {
+        cart.add(saved);
+        router.dismissTo('/pos');
       }
-      return;
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
     }
-    const product: Product = {
-      id,
-      barcode: params.barcode ?? null,
-      name: name.trim(),
-      categoryId,
-      priceCents,
-      costCents: null,
-      stock: 0,
-      minStock: 0,
-      unit,
-      taxAffectation: 'GRAVADO',
-      imageUrl: null,
-      active: true,
-      updatedAt: new Date().toISOString(),
-    };
-    await registerProduct(
-      { id, barcode: product.barcode, name: product.name, categoryId, priceCents, unit },
-      product,
-      photo,
-    );
-    cart.add({ ...product, imageUrl: photo });
-    router.dismissTo('/pos');
   };
 
   return (
@@ -132,7 +105,7 @@ export default function ProductNew() {
         <Chip label="Unidad" selected={unit === 'UND'} onPress={() => setUnit('UND')} icon="cube" />
         <Chip label="Kilo (a granel)" selected={unit === 'KG'} onPress={() => setUnit('KG')} icon="scale" />
       </View>
-      {!SERVER_ENABLED && (
+      {(
         <>
           <View style={{ flexDirection: 'row', gap: spacing.md }}>
             <View style={{ flex: 1 }}>

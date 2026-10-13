@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import {
-  buildAbonoReceiptText,
   internalAbonoTicket,
   ticketText,
   formatSoles,
@@ -16,14 +15,11 @@ import {
 } from '@perupos/shared';
 import { CustomerPicker } from '@/components/CustomerPicker';
 import { ManualPaymentModal } from '@/components/ManualPaymentModal';
-import { QrPaymentModal } from '@/components/QrPaymentModal';
 import { Banner, Button, Chip, Field, Screen } from '@/components/ui';
-import { errorMessage } from '@/lib/api';
+import { errorMessage } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
 import * as db from '@/lib/db';
-import { SERVER_ENABLED } from '@/lib/mode';
 import { store } from '@/lib/store';
-import { registerAbono } from '@/lib/sync';
 import { colors, font, shared, spacing } from '@/theme';
 
 type AbonoMethod = 'CASH' | 'YAPE' | 'PLIN';
@@ -48,34 +44,22 @@ export default function Abono() {
 
   const amountCents = parseSoles(amount) ?? 0;
 
-  const save = async (confirmation?: 'QR' | 'MANUAL', chargeId?: string, reference?: string) => {
+  const save = async (confirmation?: 'MANUAL', reference?: string) => {
     if (!customer || !user) return;
     setSaving(true);
     setError(null);
     try {
-      const optimistic: AbonoReceipt = {
-        id: abonoId,
-        customerId: customer.id,
-        customerName: customer.name,
-        amountCents,
-        method,
-        previousBalanceCents: customer.balanceCents,
-        balanceCents: customer.balanceCents - amountCents,
-        userName: user.name,
-        createdAt: new Date().toISOString(),
-      };
       const payload: AbonoInput = {
         id: abonoId,
         customerId: customer.id,
         amountCents,
         method,
         confirmation,
-        chargeId,
         reference,
-        createdAt: optimistic.createdAt,
+        createdAt: new Date().toISOString(),
       };
-      const result = SERVER_ENABLED ? await registerAbono(payload, optimistic) : await store.saveAbono(payload, user);
-      setReceipt(result);
+      // Mismo id en cada reintento: un abono no se descuenta dos veces.
+      setReceipt(await store.saveAbono(payload, user));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -92,7 +76,7 @@ export default function Abono() {
   };
 
   if (receipt && settings) {
-    const text = !SERVER_ENABLED && business ? ticketText(internalAbonoTicket(receipt, business)) : buildAbonoReceiptText(receipt, settings);
+    const text = ticketText(internalAbonoTicket(receipt, business ?? { name: settings.nombreComercial, phone: settings.phone, receiptFooter: settings.receiptFooter }));
     const share = () => {
       const link = (customer?.phone && whatsappLink(customer.phone, text)) || whatsappShareLink(text);
       void Linking.openURL(link);
@@ -156,30 +140,14 @@ export default function Abono() {
           setPicking(false);
         }}
       />
-      {showQr && !SERVER_ENABLED && method !== 'CASH' && (
+      {showQr && method !== 'CASH' && (
         <ManualPaymentModal
           visible
           method={method}
           amountCents={amountCents}
           onConfirm={(reference) => {
             setShowQr(false);
-            void save('MANUAL', undefined, reference);
-          }}
-          onCancel={() => setShowQr(false)}
-        />
-      )}
-      {showQr && SERVER_ENABLED && (
-        <QrPaymentModal
-          visible
-          amountCents={amountCents}
-          reference={abonoId}
-          onPaid={(chargeId) => {
-            setShowQr(false);
-            void save('QR', chargeId);
-          }}
-          onManual={(reference) => {
-            setShowQr(false);
-            void save('MANUAL', undefined, reference);
+            void save('MANUAL', reference);
           }}
           onCancel={() => setShowQr(false)}
         />

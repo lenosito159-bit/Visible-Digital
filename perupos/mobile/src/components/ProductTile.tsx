@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatSoles, type Product } from '@perupos/shared';
-import { imageUrl } from '@/lib/api';
+import { imageUrl } from '@/lib/images';
 import { colors, font } from '@/theme';
 import type { IconName } from './ui';
 

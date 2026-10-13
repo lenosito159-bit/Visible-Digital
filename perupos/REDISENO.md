@@ -26,7 +26,7 @@ PeruPOS pasa a ser una herramienta para que el pequeño comerciante organice su 
 | 3 | Ticket interno (sin RUC, "no es boleta ni factura") y Yape "confirmado manualmente" en ticket, caja e informes | ✅ hecha |
 | 4 | Informes y alertas en el celular, notificaciones locales | ✅ hecha (falta probar en el celular) |
 | 5 | Copia de seguridad y restauración desde archivo | ✅ hecha (falta probar en el celular) |
-| 6 | Aislar backend e integraciones como módulos opcionales; documentación final | ⬜ |
+| 6 | Separar el código del servidor; copias con contraseña; documentación final | ✅ hecha (falta probar en el celular) |
 
 ## Cómo está hecho
 - La lógica local vive en `shared/src/local/` (TypeScript puro). En el celular corre sobre
@@ -35,9 +35,8 @@ PeruPOS pasa a ser una herramienta para que el pequeño comerciante organice su 
   un celular**.
 - La base del celular tiene migraciones numeradas (`PRAGMA user_version`). Una base de una
   versión más nueva de la app no se abre (para no dañarla).
-- El módulo de servidor se enciende solo al construir la app con
-  `EXPO_PUBLIC_SERVER_ENABLED=true`. Apagado, `mobile/src/lib/api.ts` no hace ninguna llamada
-  a internet, no se pide token de notificaciones y no se cargan fotos del servidor.
+- La app no tiene código que hable con un servidor: el cliente anterior está separado en
+  `mobile/modulo-servidor/` (no se compila ni va en el APK) y el backend en `backend/`.
 
 ## Etapa 1 — qué hay
 - **Primera vez:** nombre del negocio, tu nombre, celular (opcional) y PIN de 4 a 6 números.
@@ -94,10 +93,6 @@ de la base del teléfono (con un PIN de 4 a 6 números se puede adivinar proband
 | Qué | Etapa |
 |---|---|
 | Categorías de productos (el catálogo funciona sin ellas) | más adelante |
-| Ocultar del todo el código del servidor y sus pantallas | 6 |
-
-Con el módulo de servidor encendido (`EXPO_PUBLIC_SERVER_ENABLED=true`), caja, productos y
-clientes usan igual la base del celular: ese modo se rehará en la etapa 6.
 
 ## Etapa 3 — ticket interno
 - **COMPROBANTE INTERNO** con "Venta N° 000001": nombre del negocio, celular (si lo puso),
@@ -149,9 +144,33 @@ clientes usan igual la base del celular: ese modo se rehará en la etapa 6.
   sola transacción: si falla a la mitad, el celular queda **exactamente** como estaba.
 - **Recordatorio** en el inicio del dueño si nunca hizo copia o si pasó una semana (no en la
   demostración).
-- **Con honestidad:** la copia **no va cifrada**: quien tenga el archivo puede leer los datos
-  del negocio y de los clientes (los PIN no, van con hash). La app no sabe si la copia se
-  guardó de verdad: solo que se abrió el menú de compartir.
+- (Desde la etapa 6 la copia va **cifrada con contraseña** y solo cuenta como guardada cuando
+  se comprueba abriéndola; ver abajo.)
+
+## Etapa 6 — separación del servidor y copias con contraseña
+- **Separación:** la app (`mobile/src`) solo tiene lo que funciona en el celular. Se quitaron
+  el inicio de sesión con servidor, la cola de envíos, el cobro con QR de TAYPI, las
+  notificaciones push, el Agente Financiero, la pantalla con RUC/régimen/cuentas y el SIRE.
+  Esos archivos están en `mobile/modulo-servidor/` con un README de qué haría falta para
+  volver a usarlos. El backend con TAYPI, Nubefact, padrón y SIRE sigue en `backend/`, con
+  sus tests en CI, y su documentación en `backend/README.md`.
+- Dependencias del celular que solo usaba el servidor, quitadas: netinfo, secure-store,
+  expo-device, qrcode. El bundle pasó de 4.5 MB a 3.6 MB. Android no permite `http://`.
+- **Copias con contraseña** (mínimo 8 caracteres): cifradas con XChaCha20-Poly1305 y clave
+  PBKDF2-SHA256 (150 000 vueltas). Sin la contraseña no se pueden leer; a la vista solo el
+  nombre del negocio y la fecha. **Si se olvida la contraseña, esa copia no se puede abrir.**
+- **"Copia hecha" ≠ "copia guardada":** abrir el menú de compartir ya no cuenta. La copia
+  queda "sin comprobar" hasta que el comerciante la abre desde donde la guardó (con la
+  contraseña) o la recupera. El recordatorio sigue mientras no haya una copia comprobada.
+- Clientes: crear con doble toque ya no crea dos.
+
+## Alcance acordado: cerrado
+Las 6 etapas están hechas en el código. Lo que falta **no es código**: es la prueba en un
+Android real ([`PRUEBA-APK.md`](PRUEBA-APK.md)), empezando por la demostración (ventas, copia,
+desinstalar y recuperar). Lo que salga de esa prueba se corrige antes de usarla en una tienda.
+
+Fuera del alcance (posibles siguientes pasos, no pedidos): categorías de productos, varios
+celulares por negocio, Yape verificado con TAYPI (necesita servidor), comprobantes de SUNAT.
 
 ## Prueba en un Android real
 Instrucciones completas para construir, instalar y probar: [`PRUEBA-APK.md`](PRUEBA-APK.md).

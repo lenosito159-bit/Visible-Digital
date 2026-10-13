@@ -5,7 +5,7 @@ import { formatSoles, type Customer } from '@perupos/shared';
 import { CustomerPicker, CustomerRow } from '@/components/CustomerPicker';
 import { Button, Empty, Field, Screen, StatCard } from '@/components/ui';
 import * as db from '@/lib/db';
-import { onDataChanged } from '@/lib/sync';
+import { onDataChanged } from '@/lib/events';
 import { colors, spacing } from '@/theme';
 
 /** El cuaderno de fiados, digital: clientes con su deuda. */

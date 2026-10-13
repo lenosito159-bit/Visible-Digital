@@ -1,11 +1,9 @@
 import * as Print from 'expo-print';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
 import {
-  buildReceiptText,
   formatSoles,
   internalSaleTicket,
   ticketHtml,
@@ -13,79 +11,42 @@ import {
   whatsappLink,
   whatsappShareLink,
   type LocalSale,
-  type Sale,
 } from '@perupos/shared';
 import { Banner, Button, Field, Loading, Screen } from '@/components/ui';
-import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { errorMessage } from '@/lib/api';
-import { SERVER_ENABLED } from '@/lib/mode';
+import { errorMessage } from '@/lib/errors';
 import { store } from '@/lib/store';
-import * as db from '@/lib/db';
-import { receiptHtml } from '@/lib/sale';
-import { useSyncState } from '@/lib/sync';
 import { colors, font, spacing } from '@/theme';
 
-/** Comprobante: imprimir, guardar PDF o enviar por WhatsApp. */
+/** Ticket interno de la venta: imprimir, guardar PDF o enviar por WhatsApp. Anular (solo el dueño). */
 export default function Receipt() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { settings, user, can, business } = useAuth();
-  const { online, pending } = useSyncState();
-  const [sale, setSale] = useState<Sale | LocalSale | null>(null);
-  const [status, setStatus] = useState<db.LocalSaleStatus>('PENDING');
+  const { user, can, business } = useAuth();
+  const [sale, setSale] = useState<LocalSale | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
   const [voidReason, setVoidReason] = useState('');
   const [voiding, setVoiding] = useState(false);
 
-  const loadLocal = useCallback(async () => {
-    const local = await store.getSale(id);
-    if (local) {
-      setSale(local);
-      setStatus('SYNCED');
-    }
+  const load = useCallback(async () => {
+    setSale(await store.getSale(id));
   }, [id]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
-  useEffect(() => {
-    if (!SERVER_ENABLED) {
-      void loadLocal();
-      return;
-    }
-    let alive = true;
-    (async () => {
-      const local = await db.getLocalSale(id);
-      if (local && alive) {
-        setSale(local.sale);
-        setStatus(local.status);
-        setError(local.error);
-      }
-      // El PSE emite en segundos: se vuelve a pedir para mostrar el QR de SUNAT.
-      if (online && (!local || local.status === 'SYNCED')) {
-        for (const wait of [0, 2500, 6000]) {
-          await new Promise((r) => setTimeout(r, wait));
-          const fresh = await api.get<Sale>(`/sales/${id}`).catch(() => null);
-          if (!fresh || !alive) break;
-          setSale(fresh);
-          setStatus('SYNCED');
-          if (fresh.sunatStatus !== 'PENDIENTE') break;
-        }
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [id, online, pending, loadLocal]);
-
-  if (!sale || !settings) return <Loading />;
-  // Sin servidor: comprobante interno (sin RUC ni datos de SUNAT; Yape/Plin confirmados por el comerciante).
-  const lines = !SERVER_ENABLED && business ? internalSaleTicket(sale, business) : null;
-  const text = lines ? ticketText(lines, 32) : buildReceiptText(sale, settings, 32);
-  const html = lines ? ticketHtml(lines) : receiptHtml(sale, settings);
+  if (!sale || !business) return <Loading />;
+  // Comprobante interno: sin RUC ni datos de SUNAT; Yape/Plin confirmados por el comerciante.
+  const lines = internalSaleTicket(sale, business);
+  const text = ticketText(lines, 32);
+  const html = ticketHtml(lines);
 
   const print = () => Print.printAsync({ html }).catch(() => {});
   const sharePdf = async () => {
     const { uri } = await Print.printToFileAsync({ html });
-    await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: lines ? 'Compartir ticket' : 'Compartir comprobante' });
+    await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Compartir ticket' });
   };
   const whatsapp = () => {
     const link = (phone && whatsappLink(phone, text)) || whatsappShareLink(text);
@@ -100,19 +61,11 @@ export default function Receipt() {
         <Text style={styles.successAmount}>{formatSoles(sale.totalCents)}</Text>
         {sale.changeCents > 0 && <Text style={styles.change}>Vuelto: {formatSoles(sale.changeCents)}</Text>}
       </View>
-      {status === 'PENDING' && <Banner tone="warning" text="Guardada en el teléfono. Se enviará sola cuando vuelva el internet." icon="cloud-offline" />}
-      {status === 'FAILED' && <Banner tone="danger" text={`No se pudo registrar en el servidor: ${error ?? ''}. Avisa al Administrador.`} />}
-      {sale.sunatStatus === 'RECHAZADO' && <Banner tone="danger" text="SUNAT rechazó el comprobante. El Administrador debe revisarlo." />}
 
       <View style={styles.paper}>
         <ScrollView horizontal>
           <Text style={styles.mono}>{text}</Text>
         </ScrollView>
-        {sale.sunatQr ? (
-          <View style={{ alignItems: 'center', marginTop: spacing.md }}>
-            <QRCode value={sale.sunatQr} size={140} />
-          </View>
-        ) : null}
       </View>
 
       <View style={{ gap: spacing.sm, marginTop: spacing.lg }}>
@@ -124,7 +77,7 @@ export default function Receipt() {
         <Field label="Celular del cliente (opcional)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="987 654 321" />
         <Button label="Enviar por WhatsApp" icon="logo-whatsapp" variant="primary" onPress={whatsapp} />
         <Button label="Ir al inicio" variant="ghost" icon="home" onPress={() => router.dismissAll()} />
-        {!SERVER_ENABLED && can('sales.void') && sale.status !== 'VOIDED' && (
+        {can('sales.void') && sale.status !== 'VOIDED' && (
           <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>
             {voiding ? (
               <>
@@ -138,7 +91,7 @@ export default function Receipt() {
                     try {
                       await store.voidSale(user!, sale.id, voidReason);
                       setVoiding(false);
-                      await loadLocal();
+                      await load();
                     } catch (err) {
                       setError(errorMessage(err));
                     }

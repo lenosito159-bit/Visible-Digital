@@ -3,31 +3,21 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { formatSoles } from '@perupos/shared';
 import { Button, Screen, Tile } from '@/components/ui';
-import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { SERVER_ENABLED } from '@/lib/mode';
 import { store } from '@/lib/store';
-import { useSyncState } from '@/lib/sync';
 import { colors, font, spacing } from '@/theme';
 
 /** Inicio del vendedor: cuatro botones grandes y nada más. */
 export default function VendedorHome() {
   const { user, logout } = useAuth();
-  const { online } = useSyncState();
   const [today, setToday] = useState<{ salesCents: number; salesCount: number } | null>(null);
   const [alerts, setAlerts] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
-      if (!SERVER_ENABLED) {
-        if (user) void store.daySummary(user).then(setToday);
-        void store.alerts().then((a) => setAlerts(a.length));
-        return;
-      }
-      if (!online) return;
-      api.get<{ salesCents: number; salesCount: number }>('/reports/summary').then(setToday).catch(() => {});
-      api.get<{ read: boolean }[]>('/alerts').then((a) => setAlerts(a.filter((x) => !x.read).length)).catch(() => {});
-    }, [online, user]),
+      if (user) void store.daySummary(user).then(setToday);
+      void store.alerts().then((a) => setAlerts(a.length));
+    }, [user]),
   );
 
   return (
@@ -48,7 +38,7 @@ export default function VendedorHome() {
       </View>
       <View style={[styles.grid, { marginTop: spacing.md }]}>
         <Tile label="Caja" icon="wallet" onPress={() => router.push('/cash')} color="#374151" />
-        <Tile label={SERVER_ENABLED ? 'Alertas' : 'Avisos'} icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />
+        <Tile label="Avisos" icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />
       </View>
       <Button
         label="Salir"
