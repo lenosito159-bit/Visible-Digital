@@ -166,6 +166,16 @@ export const LOCAL_MIGRATIONS: { version: number; name: string; sql: string }[] 
       );
     `,
   },
+  {
+    version: 3,
+    name: 'avisos ya notificados',
+    sql: `
+      CREATE TABLE alert_notified (
+        key TEXT PRIMARY KEY NOT NULL,
+        notified_at TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 export const LOCAL_SCHEMA_VERSION = LOCAL_MIGRATIONS[LOCAL_MIGRATIONS.length - 1]!.version;

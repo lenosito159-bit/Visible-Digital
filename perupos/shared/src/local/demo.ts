@@ -44,7 +44,7 @@ const DEMO_CUSTOMERS = [
 /** Tablas del negocio en el celular, de las que dependen a las que no (para borrar en orden). */
 export const BUSINESS_TABLES = [
   'cash_movements', 'cash_sessions', 'operation_refs', 'credit_movements', 'sale_payments', 'sale_items',
-  'sales', 'stock_movements', 'customers', 'products', 'categories', 'local_users', 'business',
+  'sales', 'stock_movements', 'customers', 'products', 'categories', 'alert_notified', 'local_users', 'business',
 ] as const;
 
 export async function setupDemo(

@@ -4,8 +4,8 @@ Esta versión funciona **solo en el celular**: sin servidor, sin internet y sin 
 construye en los servidores de Expo (EAS), así que en tu computadora **no** necesitas Android
 Studio ni el SDK de Android.
 
-> Lo que todavía falta (no lo pruebes aún): copia de seguridad y restauración (etapa 5) e
-> informes y alertas (etapa 4). **No uses esta versión en la tienda con datos reales.**
+> **No uses esta versión en la tienda con datos reales** hasta terminar esta prueba completa,
+> incluida la recuperación de una copia de seguridad.
 
 ## 1. Construir el APK (una sola vez, ~15–30 min)
 

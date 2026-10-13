@@ -8,3 +8,5 @@ export * from './abonos.js';
 export * from './cash.js';
 export * from './demo.js';
 export * from './ticket.js';
+export * from './reports.js';
+export * from './alerts.js';

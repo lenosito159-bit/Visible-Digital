@@ -31,6 +31,7 @@ export default function AdminHome() {
     useCallback(() => {
       if (!SERVER_ENABLED) {
         if (user) void store.daySummary(user).then((d) => setSummary({ ...d, averageTicketCents: 0 }));
+        void store.alerts().then((a) => setAlerts(a.length));
         return;
       }
       if (!online) return;
@@ -56,13 +57,13 @@ export default function AdminHome() {
       )}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
         <Tile label="Vender" icon="cart" onPress={() => router.push('/pos')} />
-        {SERVER_ENABLED && <Tile label="Alertas" icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />}
+        <Tile label={SERVER_ENABLED ? 'Alertas' : 'Avisos'} icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />
         <Tile label="Productos" icon="cube" onPress={() => router.push('/admin/products')} color={colors.secondary} />
         <Tile label="Clientes y fiados" icon="book" onPress={() => router.push('/customers')} color="#7C3AED" />
-        {SERVER_ENABLED && <Tile label="Reportes" icon="stats-chart" onPress={() => router.push('/admin/reports')} color="#0E7490" />}
+        <Tile label={SERVER_ENABLED ? 'Reportes' : 'Informes'} icon="stats-chart" onPress={() => router.push('/admin/reports')} color="#0E7490" />
         <Tile label="Caja" icon="wallet" onPress={() => router.push('/cash')} color="#374151" />
         <Tile label="Ventas" icon="receipt" onPress={() => router.push('/my-sales')} color="#1F2937" />
-        {SERVER_ENABLED && <Tile label="Usuarios" icon="people" onPress={() => router.push('/admin/users')} color="#4338CA" />}
+        <Tile label={SERVER_ENABLED ? 'Usuarios' : 'Ayudantes'} icon="people" onPress={() => router.push('/admin/users')} color="#4338CA" />
         <Tile label="Mi negocio" icon="settings" subtitle={SERVER_ENABLED ? "RUC, Yape/Plin, cuentas" : "Nombre, PIN, fiado"} onPress={() => router.push('/admin/settings')} color="#475569" />
         {SERVER_ENABLED && <Tile label="Tablero financiero" icon="analytics" onPress={() => router.push('/agente')} color="#6D28D9" />}
         {!SERVER_ENABLED && <Tile label="Fiados por cobrar" icon="alarm" onPress={() => router.push('/debts')} color="#92400E" />}

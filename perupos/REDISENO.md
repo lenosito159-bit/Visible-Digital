@@ -24,7 +24,7 @@ PeruPOS pasa a ser una herramienta para que el pequeño comerciante organice su 
 | 1 | Base local, acceso con PIN sin servidor, configuración mínima sin RUC | ✅ hecha |
 | 2 | Productos, inventario, ventas (efectivo, Yape/Plin confirmado manualmente, fiado), caja, fiados y abonos en el celular | ✅ hecha |
 | 3 | Ticket interno (sin RUC, "no es boleta ni factura") y Yape "confirmado manualmente" en ticket, caja e informes | ✅ hecha |
-| 4 | Informes y alertas en el celular, notificaciones locales | ⬜ |
+| 4 | Informes y alertas en el celular, notificaciones locales | ✅ hecha (falta probar en el celular) |
 | 5 | Copia de seguridad y restauración desde archivo | ⬜ |
 | 6 | Aislar backend e integraciones como módulos opcionales; documentación final | ⬜ |
 
@@ -93,9 +93,7 @@ de la base del teléfono (con un PIN de 4 a 6 números se puede adivinar proband
 ## Lo que todavía NO está listo
 | Qué | Etapa |
 |---|---|
-| Informes (por semana/mes), alertas de stock bajo y deudas vencidas, notificaciones | 4 |
 | **Copia de seguridad y restauración desde archivo** (hasta entonces, si se pierde el celular se pierden los datos) | 5 |
-| Pantalla para agregar ayudantes (la lógica ya está) | 4 |
 | Categorías de productos (el catálogo funciona sin ellas) | más adelante |
 | Ocultar del todo el código del servidor y sus pantallas | 6 |
 
@@ -115,6 +113,25 @@ clientes usan igual la base del celular: ese modo se rehará en la etapa 6.
   HTML (imprimir / PDF).
 - La lista de ventas muestra "Venta N° 000001" (antes "NV-000001").
 - El APK ya no permite conexiones `http://` salvo con el módulo de servidor encendido.
+
+## Etapa 4 — informes, avisos y ayudantes
+- **Informes** (dueño): hoy, ayer, últimos 7 días, este mes y el mes pasado (hora de Lima).
+  Vendido, N° de ventas, venta promedio, cuánto te deben, ventas por día (barras), cómo te
+  pagaron (Yape/Plin con la nota "confirmados manualmente"), fiado dado y abonos cobrados,
+  **ganancia aproximada** (solo de productos con costo anotado; dice cuánto queda sin costo) y
+  lo más vendido. Las ventas anuladas no cuentan, pero se dice cuántas hubo.
+- **Avisos**: se acabó o queda poco (según "avisar cuando queden"), fiado vencido (días sin
+  abonar > los de "Mi negocio"), cliente cerca o encima de su límite, poco sencillo en la caja y
+  producto que no se vende hace 30 días. No se guardan: se calculan al abrir la pantalla y
+  desaparecen solos cuando se resuelven. Tocar un aviso abre el producto, el cliente o la caja.
+- **Notificaciones del celular** (sin internet): al entrar con el PIN y después de vender,
+  abonar o mover stock, los avisos **nuevos** salen como notificación (máximo 3 + "N avisos
+  más"). Cada aviso se notifica una vez; si se resuelve y vuelve, se notifica otra vez.
+  **Con la app cerrada no llegan avisos** (no hay tarea en segundo plano).
+- **Ayudantes**: el dueño agrega ayudantes con nombre y PIN y les puede quitar el acceso. El
+  ayudante vende, fía, cobra abonos y usa la caja; no cambia precios, no ve informes ni anula.
+- APK: permiso de notificaciones (Android 13+) declarado; micrófono y "mostrar sobre otras
+  apps" bloqueados (la app no los usa).
 
 ## Prueba en un Android real
 Instrucciones completas para construir, instalar y probar: [`PRUEBA-APK.md`](PRUEBA-APK.md).

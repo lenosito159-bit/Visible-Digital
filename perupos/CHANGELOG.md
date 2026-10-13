@@ -1,5 +1,14 @@
 # Cambios de PeruPOS
 
+## 2026-10-13 — Rediseño, etapa 4: informes, avisos y ayudantes en el celular
+- **Nuevo:** informes por periodo (hoy, ayer, 7 días, mes, mes pasado): vendido, formas de
+  pago, fiado y abonos, ganancia aproximada, lo más vendido y ventas por día.
+- **Nuevo:** avisos de stock bajo/agotado, fiado vencido, límite de fiado, caja baja y
+  productos sin movimiento; notificaciones del propio celular sin internet.
+- **Nuevo:** pantalla de ayudantes (agregar con PIN, quitar acceso).
+- **Cambiado:** permiso de notificaciones declarado; micrófono bloqueado en el APK.
+- 8 tests nuevos (periodos en hora de Lima, informe, cada tipo de aviso, notificar una vez).
+
 ## 2026-10-12 — Rediseño, etapa 3: ticket interno
 - **Nuevo:** ticket "COMPROBANTE INTERNO" sin RUC, régimen ni SUNAT, con total, cómo pagó,
   vuelto y lo fiado (de esta compra y deuda total). Termina con "No es boleta ni factura."

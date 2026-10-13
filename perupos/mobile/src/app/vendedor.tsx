@@ -21,6 +21,7 @@ export default function VendedorHome() {
     useCallback(() => {
       if (!SERVER_ENABLED) {
         if (user) void store.daySummary(user).then(setToday);
+        void store.alerts().then((a) => setAlerts(a.length));
         return;
       }
       if (!online) return;
@@ -47,7 +48,7 @@ export default function VendedorHome() {
       </View>
       <View style={[styles.grid, { marginTop: spacing.md }]}>
         <Tile label="Caja" icon="wallet" onPress={() => router.push('/cash')} color="#374151" />
-        {SERVER_ENABLED && <Tile label="Alertas" icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />}
+        <Tile label={SERVER_ENABLED ? 'Alertas' : 'Avisos'} icon="notifications" badge={alerts} onPress={() => router.push('/alerts')} color="#92400E" />
       </View>
       <Button
         label="Salir"

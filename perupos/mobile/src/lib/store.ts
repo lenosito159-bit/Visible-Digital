@@ -1,6 +1,13 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import {
   addCashMovement,
+  addHelper,
+  computeAlerts,
+  periodRange,
+  periodReport,
+  removeHelper,
+  takeNewAlerts,
+  type ReportPeriod,
   adjustStock,
   closeCash,
   createCustomer,
@@ -30,6 +37,7 @@ import {
   type User,
 } from '@perupos/shared';
 import { localCrypto as c, localDb as db } from './localDb';
+import { notifyLocalAlerts } from './notifications';
 import { emitDataChanged } from './sync';
 
 /**
@@ -42,7 +50,17 @@ export const actorOf = (u: User): Actor => ({ id: u.id, name: u.name, role: u.ro
 async function changed<T>(p: Promise<T>): Promise<T> {
   const out = await p;
   emitDataChanged();
+  void checkAlerts();
   return out;
+}
+
+/** Revisa si hay avisos nuevos y los muestra como notificación del celular. Nunca hace fallar la operación. */
+export async function checkAlerts(): Promise<void> {
+  try {
+    await notifyLocalAlerts(await takeNewAlerts(db));
+  } catch {
+    // Sin notificación igual se ven en la pantalla de Avisos.
+  }
 }
 
 /** Copia la foto a la carpeta de la app (la de la cámara es temporal y el sistema la borra). */
@@ -82,6 +100,15 @@ export const store = {
   closeCash: (user: User, countedCents: number, transferredCents: number) =>
     changed(closeCash(db, actorOf(user), countedCents, transferredCents)),
   recentClosures: () => recentClosures(db, 10),
+
+  report: (period: ReportPeriod) => {
+    const { from, to } = periodRange(period);
+    return periodReport(db, from, to);
+  },
+  alerts: () => computeAlerts(db),
+  users: () => listLocalUsers(db),
+  addHelper: (name: string, pin: string) => changed(addHelper(db, c, { name, pin })),
+  removeHelper: (id: string) => changed(removeHelper(db, id)),
 
   /**
    * El dueño autoriza en el mismo celular con su PIN (descuento > 10 % o

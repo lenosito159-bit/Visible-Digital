@@ -22,6 +22,7 @@ import * as db from './db';
 import { localCrypto, localDb } from './localDb';
 import { SERVER_ENABLED } from './mode';
 import { registerForPush } from './notifications';
+import { checkAlerts } from './store';
 import { startSyncLoop, syncNow, onDataChanged } from './sync';
 
 interface AuthContextValue {
@@ -112,7 +113,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const unlock = useCallback(
     async (userId: string, pin: string) => {
       const result = await unlockLocal(localDb, localCrypto, userId, pin);
-      if (result.ok) setUser(toAppUser(result.user, business?.createdAt ?? new Date().toISOString()));
+      if (result.ok) {
+        setUser(toAppUser(result.user, business?.createdAt ?? new Date().toISOString()));
+        // Al entrar se revisan los avisos (stock bajo, deudas vencidas…) y se notifican en el celular.
+        void checkAlerts();
+      }
       return result;
     },
     [business],

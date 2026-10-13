@@ -40,13 +40,13 @@ function RootStack() {
       <Stack.Screen name="abono" options={{ title: 'Registrar abono' }} />
       <Stack.Screen name="debts" options={{ title: 'Fiados por cobrar' }} />
       <Stack.Screen name="cash" options={{ title: 'Caja' }} />
-      <Stack.Screen name="alerts" options={{ title: 'Alertas' }} />
+      <Stack.Screen name="alerts" options={{ title: 'Avisos' }} />
       <Stack.Screen name="admin/index" options={{ title: 'Administrador' }} />
       <Stack.Screen name="admin/products" options={{ title: 'Productos' }} />
       <Stack.Screen name="admin/product/[id]" options={{ title: 'Editar producto' }} />
-      <Stack.Screen name="admin/users" options={{ title: 'Usuarios' }} />
+      <Stack.Screen name="admin/users" options={{ title: 'Ayudantes' }} />
       <Stack.Screen name="admin/settings" options={{ title: 'Mi negocio' }} />
-      <Stack.Screen name="admin/reports" options={{ title: 'Reportes' }} />
+      <Stack.Screen name="admin/reports" options={{ title: 'Informes' }} />
       <Stack.Screen name="agente/index" options={{ title: 'Agente Financiero' }} />
       <Stack.Screen name="agente/send" options={{ title: 'Enviar recomendación', presentation: 'modal' }} />
     </Stack>
