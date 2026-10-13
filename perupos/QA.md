@@ -44,6 +44,9 @@ cd mobile && EAS_BUILD_PROFILE=preview npx expo export --platform android --outp
   caja, numeración), reemplazo sin restos, archivo editado/cortado/ajeno/más nuevo rechazado,
   falla a la mitad; contraseña equivocada, archivo cifrado alterado, contraseña corta, sal y
   nonce al azar, copias antiguas sin contraseña, "copia hecha" ≠ "copia comprobada".
+- **La guía del APK:** `shared/test/guia-demo.test.ts` hace la parte A de `PRUEBA-APK.md` paso
+  a paso con la demostración y comprueba sus números (caja S/ 132.30, stock, deudas, foto,
+  numeración y N° de operación tras recuperar). Si la guía y la app no coinciden, falla.
 - Se comprobó que los tests detectan errores rompiendo a propósito el cálculo de la caja y
   quitando las transacciones de la venta y de la recuperación.
 

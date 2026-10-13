@@ -40,6 +40,9 @@ Anota ✅ o ❌ en cada paso. Si algo falla, captura de pantalla + número de pa
 ## Parte A — Demostración: ventas, copia, desinstalar y recuperar (primero esto)
 
 Se hace con datos de ejemplo para no arriesgar nada. **Modo avión** salvo donde se indica.
+Los nombres de productos son los de la demostración (escríbelos así en el buscador). Todos
+los números de esta parte están comprobados por el test `shared/test/guia-demo.test.ts`, que
+hace estos mismos pasos con la lógica de la app.
 
 ### A1. Abrir la demostración
 1. Abre la app → **Probar con datos de ejemplo**. Sale una franja amarilla
@@ -47,8 +50,8 @@ Se hace con datos de ejemplo para no arriesgar nada. **Modo avión** salvo donde
 2. **Caja → Abrir** con S/ 100.
 
 ### A2. Los 3 flujos de cobro
-3. **(a) Efectivo + Yape.** Nueva venta: Cerveza Pilsen ×4, Inca Kola 1.5 L ×2, Coca-Cola
-   500 ml ×2 = **S/ 50**. Cobrar: Efectivo 20, "¿Con cuánto paga?" 50 → **+ Agregar otro
+3. **(a) Efectivo + Yape.** Nueva venta: **Cerveza Pilsen Callao 630 ml** ×4, **Inca Kola 1.5 L**
+   ×2, **Coca-Cola 500 ml** ×2 = **S/ 50**. Cobrar: Efectivo 20, "¿Con cuánto paga?" 50 → **+ Agregar otro
    método** → Yape 30. Al tocar **Cobrar**: "¿Ya te llegó?" → N° de operación **123456** →
    **Sí, ya me llegó**.
    - Vuelto **S/ 30.00**. Ticket: **COMPROBANTE INTERNO**, "Venta N° 000001", Efectivo 20 /
@@ -60,8 +63,8 @@ Se hace con datos de ejemplo para no arriesgar nada. **Modo avión** salvo donde
    Castillo**. Confirma el Yape (sin N° de operación).
    - Vuelto **S/ 10.00**. Ticket: "Fiado (queda debiendo) S/ 20.00" y "Pedro queda debiendo
      S/ 20.00 de esta compra."
-5. **(c) "Te yapeo 40, dame el vuelto".** Aceite Primor ×2, Leche Gloria ×2, Pan francés ×4
-   = **S/ 32**. Yape → **"Me yapeó más: dar vuelto"** → 40. Confirma.
+5. **(c) "Te yapeo 40, dame el vuelto".** **Aceite vegetal Primor 900 ml** ×2, **Leche
+   evaporada Gloria 400 g** ×2, **Pan francés (unidad)** ×4 = **S/ 32**. Yape → **"Me yapeó más: dar vuelto"** → 40. Confirma.
    - Vuelto **S/ 8.00**. Ticket: Yape 32, **Yapeó 40**, confirmado manualmente, VUELTO 8.
 6. Otra venta con Yape y el N° de operación **123456**: debe **rechazarlo** y volver a
    preguntar "¿Ya te llegó?". Sal sin cobrar y vacía el carrito.
@@ -72,9 +75,31 @@ Se hace con datos de ejemplo para no arriesgar nada. **Modo avión** salvo donde
 8. **Abono** de Pedro: S/ 5 por **Yape** → "¿Ya te llegó?" → Sí. Constancia: Debía 20.00,
    Abonó (Yape) −5.00, "Confirmado manualmente por el comerciante", **AHORA DEBE S/ 15.00**.
 9. **Abono** de Juan Pérez: S/ 10 en **efectivo** → ahora debe **S/ 35.00**.
-10. **Caja**: "Debe haber" = 100 + 20 + 10 + 0.30 − 8 + 10 = **S/ 132.30**.
-11. Productos: Pilsen **16**, Inca Kola 1.5 L **16**, Coca-Cola 500 ml **44**, Aceite **16**,
-    Leche **46**, Pan **145**.
+10. **Caja**: "Debe haber" **S/ 132.30**. Así se forma (solo cuenta lo que entra o sale del
+    cajón en efectivo):
+
+    | Paso | Movimiento | Efectivo en el cajón |
+    |---|---|---|
+    | 2 | Apertura | + 100.00 |
+    | 3 | (a) parte en efectivo (entregó 50, vuelto 30 sale del mismo billete) | + 20.00 |
+    | 4 | (b) parte en efectivo (entregó 20, vuelto 10) | + 10.00 |
+    | 5 | (c) vuelto en efectivo de un Yape de más (yapeó 40 por 32) | − 8.00 |
+    | 7 | Pan francés en efectivo (prueba de doble toque) | + 0.30 |
+    | 9 | Abono de Juan en **efectivo** | + 10.00 |
+    | | **Debe haber** | **= 132.30** |
+
+    No cuentan en el cajón: los Yape (30, 20, 32 y el abono de 5 de Pedro, van a tu app de
+    Yape) ni el fiado de 20.
+
+    > **¿Por qué antes era S/ 122?** La guía de la etapa 2 tenía solo 100 + 20 + 10 − 8 = 122.
+    > Esta guía agrega dos movimientos en efectivo que antes no estaban: la venta de 1 Pan
+    > francés del paso 7 (**+ 0.30**) y el abono de Juan en efectivo del paso 9 (**+ 10.00**).
+    > 122 + 0.30 + 10 = **132.30**. El cálculo de la app no cambió; cambiaron los pasos.
+11. Productos: Cerveza Pilsen **16**, Inca Kola 1.5 L **16**, Coca-Cola 500 ml **44**, Aceite
+    vegetal Primor **16**, Leche evaporada Gloria **46**, Pan francés **145**.
+11b. **Foto:** Productos → **Aceite vegetal Primor 900 ml** → **Cambiar foto** → toma una foto de cualquier cosa
+    (los productos de ejemplo vienen sin foto; esta sirve para comprobar que la copia la
+    recupera). Debe verse en la lista de productos y en la venta.
 
 **Anota estos números:** los vas a comparar después de recuperar la copia.
 
@@ -86,10 +111,13 @@ Se hace con datos de ejemplo para no arriesgar nada. **Modo avión** salvo donde
     Descargas). Mándala también a ti mismo por WhatsApp.
     - La app **no** debe decir "copia guardada": debe decir que se abrió el menú y que todavía
       no sabe si se guardó.
-14. **2. Comprobar que quedó guardada** → elige el archivo desde Drive o Descargas:
+14. **Antes de desinstalar, comprueba que la copia está FUERA de la app y se abre.**
+    **2. Comprobar que quedó guardada** → elige el archivo **desde Drive o Descargas** (no
+    desde la carpeta de la app):
     - con **`prueba demo 2025`** (equivocada): debe decir que la contraseña no es la de esta copia;
     - con **`prueba demo 2026`**: **"Copia comprobada"**, con la fecha y 4 ventas, 20
       productos y 3 clientes.
+    - **No pases al paso 16 si esto no salió bien**: desinstalar borra todo lo del celular.
 15. **3. Recuperar** → elige una **foto** o un PDF: debe decir que **no es una copia de
     PeruPOS** y no cambiar nada.
 
@@ -99,12 +127,13 @@ Se hace con datos de ejemplo para no arriesgar nada. **Modo avión** salvo donde
     Descargas; necesitas señal para bajarlo). Debe mostrar "Bodega de demostración" y la fecha
     **antes** de pedir la contraseña.
 18. Pon la contraseña **equivocada**: no debe abrir. Pon **`prueba demo 2026`** → revisa el
-    resumen (4 ventas, 20 productos, 3 clientes) → **Recuperar esta copia**.
+    resumen (4 ventas, 20 productos, 3 clientes, **1 foto**) → **Recuperar esta copia**.
 19. Entra con el PIN **1234**. Revisa que todo esté **igual que en A3**:
     - Ventas: las 4, con sus tickets (Yape "Confirmado manualmente por el comerciante").
     - Deudas: Pedro **S/ 15.00**, Juan **S/ 35.00**, María **S/ 46.00**.
-    - Caja abierta con **S/ 132.30**.
+    - Caja abierta con **S/ 132.30** (mismo detalle del paso 10).
     - Stock como en el paso 11.
+    - La **foto del Aceite vegetal Primor** (paso 11b) en la lista de productos.
     - La franja amarilla de DEMOSTRACIÓN.
 20. Vende 1 Pan francés: debe ser la **Venta N° 000005** (la numeración sigue).
 21. Un Yape con el N° de operación **123456**: debe seguir **rechazado**.
