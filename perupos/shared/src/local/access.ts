@@ -20,8 +20,10 @@ export interface LocalBusiness {
   receiptFooter: string | null;
   /** Negocio de demostración (datos de ejemplo). Se puede borrar entero. */
   isDemo: boolean;
-  /** Última copia de seguridad hecha o restaurada. */
+  /** Última copia de seguridad hecha (puede no estar comprobada). */
   lastBackupAt: string | null;
+  /** Última vez que se comprobó que una copia guardada se abre con su contraseña. */
+  backupVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +61,7 @@ interface BusinessRow {
   recovery_salt: string;
   is_demo: number;
   last_backup_at: string | null;
+  backup_verified_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -87,6 +90,7 @@ const toBusiness = (r: BusinessRow): LocalBusiness => ({
   receiptFooter: r.receipt_footer,
   isDemo: !!r.is_demo,
   lastBackupAt: r.last_backup_at ?? null,
+  backupVerifiedAt: r.backup_verified_at ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });

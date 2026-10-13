@@ -23,7 +23,7 @@ import {
   listLocalUsers,
   listProducts,
   listSales,
-  markBackupDone,
+  markBackupVerified,
   migrateLocal,
   openCash,
   readBackup,
@@ -210,7 +210,7 @@ describe('recordatorio de copia', () => {
   it('avisa si nunca se hizo copia o si pasó una semana; no molesta en la demostración', async () => {
     const now = new Date();
     expect(await backupReminder(phoneA, now)).toContain('Todavía no tienes una copia');
-    await markBackupDone(phoneA, now);
+    await markBackupVerified(phoneA, now.toISOString(), now);
     expect(await backupReminder(phoneA, now)).toBeNull();
     expect(await backupReminder(phoneA, new Date(now.getTime() + 8 * 86_400_000))).toContain('hace 8 días');
     const demo = await freshPhone('demo.db');

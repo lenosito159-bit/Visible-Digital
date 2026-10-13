@@ -11,3 +11,4 @@ export * from './ticket.js';
 export * from './reports.js';
 export * from './alerts.js';
 export * from './backup.js';
+export * from './backupCrypto.js';

@@ -102,6 +102,7 @@ function LocalSettings() {
           <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Copia de seguridad</Text>
           <BackupPanel
             lastBackupAt={business.lastBackupAt}
+            backupVerifiedAt={business.backupVerifiedAt}
             onRestored={async () => {
               // Lo recuperado tiene sus propios usuarios y PIN: se vuelve a entrar.
               await reloadBusiness();

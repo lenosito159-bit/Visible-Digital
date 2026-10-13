@@ -145,28 +145,42 @@ export async function restoreBackup(db: LocalDb, f: BackupFile, now: Date = new 
     // La deuda de cada cliente se vuelve a calcular desde su cuaderno.
     // (Se conserva la fecha de modificación de la copia: los datos quedan idénticos.)
     for (const cu of f.tables.customers) await refreshCustomerDebt(db, String(cu.id), String(cu.updated_at ?? ts));
-    // La copia que se acaba de restaurar cuenta como la última copia.
-    await db.run('UPDATE business SET last_backup_at = ?', f.createdAt);
+    // La copia que se acaba de recuperar se abrió bien: cuenta como copia comprobada.
+    await db.run('UPDATE business SET last_backup_at = ?, backup_verified_at = ?', f.createdAt, ts);
   });
   return (await getBusiness(db))!;
 }
 
-/** Anotar que se hizo una copia (para el recordatorio). */
+/** Anotar que se hizo una copia (todavía sin comprobar que quedó guardada). */
 export async function markBackupDone(db: LocalDb, at: Date = new Date()): Promise<void> {
   await db.run('UPDATE business SET last_backup_at = ?', at.toISOString());
 }
 
+/**
+ * Anotar que el comerciante abrió una copia guardada (desde WhatsApp, Drive…)
+ * con su contraseña: recién ahí sabemos que la copia existe y se puede recuperar.
+ */
+export async function markBackupVerified(db: LocalDb, backupCreatedAt: string, at: Date = new Date()): Promise<void> {
+  await db.run('UPDATE business SET backup_verified_at = ?, last_backup_at = COALESCE(last_backup_at, ?)', at.toISOString(), backupCreatedAt);
+}
+
 export const BACKUP_REMINDER_DAYS = 7;
 
-/** Recordatorio para la pantalla de inicio, o null si la copia está al día. */
+/** Recordatorio para la pantalla de inicio, o null si hay una copia comprobada reciente. */
 export async function backupReminder(db: LocalDb, now: Date = new Date()): Promise<string | null> {
-  const row = await db.get<{ last_backup_at: string | null; is_demo: number }>('SELECT last_backup_at, is_demo FROM business LIMIT 1');
+  const row = await db.get<{ last_backup_at: string | null; backup_verified_at: string | null; is_demo: number }>(
+    'SELECT last_backup_at, backup_verified_at, is_demo FROM business LIMIT 1',
+  );
   if (!row || row.is_demo) return null;
   const sales = await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM sales');
   const products = await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM products');
   if (!sales?.n && !products?.n) return null;
-  if (!row.last_backup_at) return 'Todavía no tienes una copia de seguridad. Si se pierde o se malogra el celular, pierdes todo.';
-  const days = Math.floor((now.getTime() - new Date(row.last_backup_at).getTime()) / 86_400_000);
+  if (!row.backup_verified_at) {
+    return row.last_backup_at
+      ? 'Hiciste una copia pero no comprobaste que quedó guardada. Comprúebala en Mi negocio → Copia de seguridad.'
+      : 'Todavía no tienes una copia de seguridad. Si se pierde o se malogra el celular, pierdes todo.';
+  }
+  const days = Math.floor((now.getTime() - new Date(row.backup_verified_at).getTime()) / 86_400_000);
   if (days < BACKUP_REMINDER_DAYS) return null;
-  return `Tu última copia de seguridad fue hace ${days} días. Haz una nueva y guárdala fuera del celular.`;
+  return `Tu última copia comprobada es de hace ${days} días. Haz una nueva, guárdala fuera del celular y comprúebala.`;
 }

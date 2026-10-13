@@ -1,14 +1,19 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import {
+  BACKUP_PASSWORD_MIN,
   backupReminder,
   backupSummary,
   createBackup,
+  encryptBackup,
   getBusiness,
   markBackupDone,
-  readBackup,
+  markBackupVerified,
+  openBackup,
+  peekBackup,
   restoreBackup,
   type BackupFile,
+  type BackupPeek,
   type BackupSummary,
 } from '@perupos/shared';
 import { localCrypto as c, localDb as db } from './localDb';
@@ -16,7 +21,8 @@ import { emitDataChanged } from './sync';
 
 /**
  * Copia de seguridad en el celular:
- * - Se arma un archivo .json con todo el negocio y las fotos de los productos.
+ * - Se arma un archivo .json con todo el negocio y las fotos, cifrado con la
+ *   contraseña que pone el comerciante.
  * - El comerciante lo guarda donde quiera con el menú de compartir del celular
  *   (WhatsApp a sí mismo, Drive, correo, memoria). La app no lo sube sola.
  * - Además quedan las últimas copias dentro de la app, por si se equivoca al
@@ -50,14 +56,15 @@ async function collectPhotos(): Promise<Record<string, string>> {
   return photos;
 }
 
-async function writeBackupFile(prefix: string): Promise<{ file: File; summary: BackupSummary }> {
+async function writeBackupFile(prefix: string, password: string): Promise<{ file: File; summary: BackupSummary }> {
   const business = await getBusiness(db);
   const backup = await createBackup(db, c, await collectPhotos());
+  const content = JSON.stringify(await encryptBackup(backup, password, c));
   const dir = folder('copias');
   const file = new File(dir, `${prefix}-${slug(business?.name ?? '')}-${stamp(new Date())}.json`);
   if (file.exists) file.delete();
   file.create();
-  file.write(JSON.stringify(backup));
+  file.write(content);
   // Se guardan solo las últimas copias dentro de la app.
   const old = dir
     .list()
@@ -68,34 +75,54 @@ async function writeBackupFile(prefix: string): Promise<{ file: File; summary: B
   return { file, summary: backupSummary(backup) };
 }
 
-/** Hace la copia y abre el menú de compartir para guardarla fuera del celular. */
-export async function makeAndShareBackup(): Promise<BackupSummary> {
-  const { file, summary } = await writeBackupFile('perupos-copia');
+/**
+ * Hace la copia protegida y abre el menú de compartir. Ojo: que el menú se
+ * abra NO significa que la copia quedó guardada (el comerciante puede cerrar
+ * el menú o el envío puede fallar). Por eso queda como "sin comprobar".
+ */
+export async function makeAndShareBackup(password: string): Promise<{ summary: BackupSummary; fileName: string }> {
+  const { file, summary } = await writeBackupFile('perupos-copia', password);
   if (!(await Sharing.isAvailableAsync())) throw new Error('Este celular no permite compartir archivos.');
+  await markBackupDone(db);
+  emitDataChanged();
   await Sharing.shareAsync(file.uri, {
     mimeType: 'application/json',
     UTI: 'public.json',
     dialogTitle: 'Guarda tu copia fuera del celular (WhatsApp a ti mismo, Drive, correo…)',
   });
-  await markBackupDone(db);
+  return { summary, fileName: file.name };
+}
+
+/** El comerciante elige un archivo. null si canceló. Solo se lee lo que está a la vista. */
+export async function pickBackupFile(): Promise<{ text: string; peek: BackupPeek; name: string } | null> {
+  const picked = await File.pickFileAsync({ mimeTypes: ['application/json', 'text/plain', 'application/octet-stream', '*/*'] });
+  if (picked.canceled || !picked.result) return null;
+  const text = await picked.result.text();
+  return { text, peek: peekBackup(text), name: picked.result.name };
+}
+
+/** Abre la copia con su contraseña y la revisa entera. No cambia nada del celular. */
+export async function openBackupText(text: string, password: string): Promise<{ backup: BackupFile; summary: BackupSummary }> {
+  const backup = await openBackup(c, text, password || undefined);
+  return { backup, summary: backupSummary(backup) };
+}
+
+/** Comprobar una copia guardada: si se abre con la contraseña, queda anotada como comprobada. */
+export async function verifyBackupText(text: string, password: string): Promise<BackupSummary> {
+  const { backup, summary } = await openBackupText(text, password);
+  await markBackupVerified(db, backup.createdAt);
   emitDataChanged();
   return summary;
 }
 
-/** El comerciante elige el archivo de la copia. null si canceló. */
-export async function pickBackup(): Promise<{ backup: BackupFile; summary: BackupSummary } | null> {
-  const picked = await File.pickFileAsync({ mimeTypes: ['application/json', 'text/plain', 'application/octet-stream', '*/*'] });
-  if (picked.canceled || !picked.result) return null;
-  const backup = await readBackup(c, await picked.result.text());
-  return { backup, summary: backupSummary(backup) };
-}
-
 /**
  * Reemplaza todo lo del celular por la copia. Si ya había un negocio, antes
- * guarda una copia de lo actual dentro de la app ("antes-de-recuperar").
+ * guarda una copia de lo actual dentro de la app ("antes-de-recuperar"),
+ * protegida con la misma contraseña de la copia que se recupera.
  */
-export async function restoreFromBackup(backup: BackupFile): Promise<void> {
-  if (await getBusiness(db)) await writeBackupFile('antes-de-recuperar');
+export async function restoreFromBackup(backup: BackupFile, password: string): Promise<void> {
+  // (Una copia antigua sin contraseña no tiene con qué proteger esa copia previa: se omite.)
+  if (password.length >= BACKUP_PASSWORD_MIN && (await getBusiness(db))) await writeBackupFile('antes-de-recuperar', password);
   // Fotos: se escriben en la carpeta de este celular y se corrige su ruta.
   const dir = folder('fotos');
   const newUri: Record<string, string> = {};

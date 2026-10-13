@@ -183,6 +183,13 @@ export const LOCAL_MIGRATIONS: { version: number; name: string; sql: string }[] 
       ALTER TABLE business ADD COLUMN last_backup_at TEXT;
     `,
   },
+  {
+    version: 5,
+    name: 'copia comprobada',
+    sql: `
+      ALTER TABLE business ADD COLUMN backup_verified_at TEXT;
+    `,
+  },
 ];
 
 export const LOCAL_SCHEMA_VERSION = LOCAL_MIGRATIONS[LOCAL_MIGRATIONS.length - 1]!.version;
